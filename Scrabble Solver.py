@@ -7,6 +7,10 @@
 #       idea: optional parameter "search", return the list of words of that letter that contain the "search" term
 # TODO: Performance improvements - searching the words is painfully slow ATM
 # TODO: Handling for the JOKER-character --> on it
+#       idea: add "Flags" to a play if: 
+#       * all rack-letters are used
+#       * jokers are used
+#       would improve readability a bit
 # TODO: at least one letter from the rack must be used
 # TODO: Rework of searchWords so it does actually run through at least 2 times to create shorter words too
 # TODO: Culling of available plays - if a play using all rack-letters can be found, discard the others that dont use all of the rack
@@ -36,7 +40,8 @@ from collections_extended import frozenbag
 
 
 # ***Distribution of letters:***
-# a. define Letters and their Point-Values (perhaps in a dict with the letter as the key, and the value as the score.)
+# a. define Letters and their Point-Values (in a dict with the letter as the key, and the value as the score.)
+
 # GERMAN:
 lettersDict = {"E":1, "N":1, "S":1, "I":1, "R":1, "U":1, "A":1, "D":1, "H":2, "G":2, "L":2, "O":2, "M":3, "B":3, "W":3, "Z":3, "C":4, "F":4, "K":4, "P":4, "Ä":6, "J":6, "Ü":6, "V":6, "Ö":8, "X":8, "Q":10, "Y":10, "?":0, "T":1}
 #sorted letters: sletters = pprint.pformat(letters)
@@ -423,7 +428,6 @@ def getLetterFromPosition(position = "0", x = None, y = None, lettersOnly = Fals
 # if the same letter is already in place, the play is still valid.
 # this makes function setWordonBoard less cumbersome by not having to omit the already-placed letters
 def setLetterToPosition(letter, position = None, x = None, y = None, temporary = False):
-    #
     global lettersOnBoard, temporaryBoard
 
 
@@ -454,7 +458,6 @@ def setLetterToPosition(letter, position = None, x = None, y = None, temporary =
 
 # function for placing a word onto the board, given a word, a starting position and horizontal/vertial alignment
 def setWordOnBoard(word, position, horizontalOrVertical, temporary = False):
-    #
     wordlength = len(word)
     x,y = positionToCoord(position)
     #print(f"Placing {word} at {position}, {horizontalOrVertical}")
@@ -490,6 +493,18 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
 
     # check if the word is placed on a word-modifier - if yes, collect the score of the single letters
     # and modify the score of the entire word. A word can have more than one multiplier.
+    
+    
+    # extract an eventual joker-character
+    jokers = list(substring_indexes("(", word))
+    if len(jokers) > 0:
+        for entry in jokers:
+            replaceIndex = int(entry) + 1 
+            print(word)
+            word = word[:replaceIndex] + "?" + word[replaceIndex+1:]
+            word = word.replace("(","")
+            word = word.replace(")","")
+            print(word)
 
     # function does not actually place a word or a letter, it just returns a score for a given word on a given position.
     # the score of a word is the sum of all results of scoreLetter, modified where necessary
@@ -498,6 +513,8 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
     letterScore = 0
     wordLength = len(word)
     wordModifier = 1
+
+
 
     # get modifiers first
     if horizontalOrVertical[0].upper() == "H":
@@ -592,8 +609,15 @@ def prepareDictionary():
                 if regExContains.match(word) is not None: wordListCombined[i][j].append(word)
            
             #wordListByLength.append() # Append the matches of the combined length (2-15) and letter (0-25)
+            #wordListCombined[i].append(["?"])
             print(f"Words with {i+2} letters, Letter {currentLetter}: {len(wordListCombined[i][j])}")
-    
+            
+
+    # add the joker-letter with empty lists
+    #for i in range(0,len(regExListLength)):
+    #    wordListCombined.append(["?"])
+        
+
     # write the completed wordlist to the shelve-file.
     d["wordListCombined"] = wordListCombined
     d.close()
@@ -609,6 +633,7 @@ def getFromWordList(length, letter):
     if letter == "Ä":    letter = "A" # containing letter can be "A" OR "Ä"
     if letter == "Ö":    letter = "O"
     if letter == "Ü":    letter = "U"
+    if letter == "?":    return [0][""]
     
     numLetter = ord(letter)-65
 
@@ -646,15 +671,18 @@ def searchWords(position, lettersRow, horizontalOrVertical):
     #
     #global buildableWords
     global rack
+
     functionWords = []
     combinedRack = "".join(rack) + lettersRow.replace("0","")
     combinedRackLength = len(combinedRack)
+
     #print(combinedRack)
     # generate a list of possible words from the combined rack    
     # grab the row of letters on the board
     # Iterate by length of the words, starting with the longest possible
     # TODO: grab the Number of the fixed positions, add those to the wordlength
     # combinedrack gets...weird.
+    
     if combinedRackLength > 15: combinedRackLength = 15
     
     wordLengthTarget = 0
@@ -666,7 +694,10 @@ def searchWords(position, lettersRow, horizontalOrVertical):
             continue
         # Iterate by letter in the rack + letters in the fixed positions
         for letter in set(rack):
-            cutoffNumberOfWords = 10 # 10 words for each letter in the rack
+            # skip creating a Generator if the letter is a joker
+            if letter == "?": continue
+
+            cutoffNumberOfWords = 50 # 10 words for each letter in the rack
             buildableGenerator = (word for word in getFromWordList(wordLength,letter) if lettersCanBuildWord(word, combinedRack) is True)
 
             for uniqueWord in buildableGenerator:
@@ -677,13 +708,12 @@ def searchWords(position, lettersRow, horizontalOrVertical):
                 #print(f"Words in buildableGenerator for Letter {letter} with {wordLength+2} letters:  ",len(wordListCombined[wordLength][numletter]))
                 #print(f"read: wordListCombined[{wordLength}][{numletter}]")
     
-                #pprint.pprint(sorted(buildableWords))
+                pprint.pprint(sorted(buildableWords))
     return functionWords
 
 
 
 def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
-    #
     global availablePlays, temporaryBoard, lettersOnBoard
     #functionPlays = []
     #resetBoard = copy.deepcopy(temporaryBoard)
@@ -705,10 +735,19 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
     
 
     # iterate through the already-placed letters on the board
+    
+    
+    # grab number of jokers on the rack
+    numJokers = rack.count("?")
+
     print(f"Converting {word} into available play(s)...")
     for position in fixedPositions:
         
-        check1 = check2 = check3 = check4 = False
+        check1 = False
+        check2 = False
+        check3 = False
+        check4 = False
+
         startPos = 0
         # convert the fixed position to its corresponding letter
         letter = getLetterFromPosition(position)
@@ -754,10 +793,10 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
                 #print(f"Starting Position for {word}: {startPos}")
             
                 if startPos is not None and endPos is not None:
-                    #print("Check 1 (Positions) passed.")
+                    print("Check 1 (Positions) passed.")
                     check1 = True
                 else:
-                    #print("!!Check 1 (Positions) failed.")
+                    print("!!Check 1 (Positions) failed.")
                     continue
             
             
@@ -774,14 +813,14 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
                 # iterate through the fixed positions
                 for counterPosition in fixedPositionsInRange:
                     additionalLetters += "".join(getLetterFromPosition(counterPosition, lettersOnly = True))
-                #print("Additional Letters:", additionalLetters)
+                print("Additional Letters:", additionalLetters)
 
                 # check if the letters on the rack and the additional fixed positions can spell the word.
                 if lettersCanBuildWord(word, "".join(rack) + additionalLetters) == True: 
-                    #print("Check 2 (buildable from rack) passed.")
+                    print("Check 2 (buildable from rack) passed.")
                     check2 = True
                 else:
-                    #print("!!Check 2 (buildable from rack) failed")
+                    print("!!Check 2 (buildable from rack) failed")
                     continue
 
 
@@ -792,12 +831,12 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
 
                 # Check if the letters from StartingPosition to ending Position are equal to the word
                 checkWord = getWordFromPositions(startPos, endPos, horizontalOrVertical, temporary = True)
-            
+                print("CheckWord:", checkWord)
                 if word == checkWord:
-                    #print("Check 3 (word placed equals word searched) passed.")
+                    print("Check 3 (word placed equals word searched) passed.")
                     check3 = True
                 else:
-                    #print("!!Check 3 (word placed equals word searched) failed.")
+                    print("!!Check 3 (word placed equals word searched) failed.")
                     continue
 
 
@@ -815,28 +854,32 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
                 if squareBefore is None:
                     # ...only the square after the word needs to be empty.
                     if squareAfter == "0":
-                        #print("Check 4 (Square before/after is empty) passed.")
+                        print("Check 4 (Square before/after is empty) passed.")
                         check4 = True
                     else:
-                        #print("!!Check 4 (Square before/after is empty) failed.")
+                        print("!!Check 4 (Square before/after is empty) failed.")
                         continue
                 # if squareAfter is outside of the board (EndPos is either Column O or Row 15)...
                 elif squareAfter is None:
                     # ...only the square before the word needs to be empty.
                     if squareBefore == "0":
-                        #print("Check 4 (Square before/after is empty) passed.")
+                        print("Check 4 (Square before/after is empty) passed.")
                         check4 = True
                     else:
-                        #print("!!Check 4 (Square before/after is empty) failed.")
+                        print("!!Check 4 (Square before/after is empty) failed.")
                         continue
                 else:
                     #if the square before and after are inside the board (read: valid positions), then they must both be empty.
                     if squareAfter == "0" and squareBefore == "0":
-                        #print("Check 4 (Square before/after is empty) passed.")
+                        print("Check 4 (Square before/after is empty) passed.")
                         check4 = True
                     else:
-                        #print("!!Check 4 (Square before/after is empty) failed.")
+                        print("!!Check 4 (Square before/after is empty) failed.")
                         continue
+
+
+                # figure out which letter(s) of the word is/are used by the joker(s) - modify the word before adding it to available plays.
+                if numJokers > 0:   word = convertWordToJoker(word,"".join(rack) + additionalLetters)
 
                 # if all checks are True, append the (unique) play to the list functionPlays
                 if check1 is True and check2 is True and check3 is True and check4 is True:
@@ -868,11 +911,14 @@ def lettersCanBuildWord(wordToCheck, lettersGiven):
     # since this function is called inside a nested for-loop, wordToCheck.unique_elements(): is the same every time and doesnt need to be re-established every time - rework!
     wordToCheck = frozenbag(wordToCheck)
     
-    lettersGiven = frozenbag(lettersGiven) # = letters on the board + letters on the rack
-
     # handling the joker-character:
     # count the jokers in lettersGiven (= the rack)
     jokers = lettersGiven.count("?")
+    lettersGiven = lettersGiven.replace("?","",jokers)
+
+    lettersGiven = frozenbag(lettersGiven) # = letters on the board + letters on the rack
+
+
     
     # counts every unique letter in wordToCheck, returns TRUE if all lettersGiven are contained in at least the same amount in wordToCheck.
     # the count of the unique letters must be equal or less to the unique letters in wordToCheck
@@ -886,17 +932,41 @@ def lettersCanBuildWord(wordToCheck, lettersGiven):
     
     for letter in wordToCheck.unique_elements():
         #DEBUG:
-        #print(f"letter: {letter}, amount in word '{wordToCheck}': {wordToCheck.count(letter)}")
-        #print(f"available in {lettersGiven}: {lettersGiven.count(letter)}")
+        print(f"letter: {letter}, amount in word '{wordToCheck}': {wordToCheck.count(letter)}")
+        print(f"available in {lettersGiven}: {lettersGiven.count(letter)}")
         if(wordToCheck.count(letter) > lettersGiven.count(letter)):
-            jokers -= 1
-            if jokers < 0:
+            if jokers > 0:
+                jokers -= 1
+            else:
                 return False # quits the function in the middle.
     return True
 
 
+def convertWordToJoker(wordToCheck, lettersGiven):
+    # like lettersCanBuildWord, but returns the Word with Jokers replacing the missing letters
+    jokerWord = str(wordToCheck)
+    
+    wordToCheck = frozenbag(wordToCheck)
+    
+    lettersGiven = frozenbag(lettersGiven) # = letters on the board + letters on the rack
 
-
+    
+    # handling the joker-character:
+    # count the jokers in lettersGiven (= the rack)
+    jokers = lettersGiven.count("?") # either 1 or 2 when this function is called.
+    
+    
+    for letter in wordToCheck.unique_elements():
+        #DEBUG:
+        #print(f"letter: {letter}, amount in word '{wordToCheck}': {wordToCheck.count(letter)}")
+        #print(f"available in {lettersGiven}: {lettersGiven.count(letter)}")
+        if jokers > 0:
+            if(wordToCheck.count(letter) > lettersGiven.count(letter)):
+                jokerLetter = letter
+                jokers -= 1
+        # replace a single letter with a joker
+                jokerWord = jokerWord.replace(letter,"("+letter+")",1)
+    return jokerWord
 
 
 # ***Playing the game***
@@ -932,19 +1002,20 @@ def printBoard():
     for row in range(len(lettersOnBoard)):
         print("+---"*15)
         for column in range(len(lettersOnBoard[0])):
-            print(" " + getLetterFromPosition(y = row, x = column) + "\t", end = "")
-        print("\t" + str(row+1))
+            #print(" " + getLetterFromPosition(y = row, x = column) + "\t", end = "")
+            print("   " + getLetterFromPosition(y = row, x = column) + "   ", end = "")
+        print("   " + str(row+1))
     
     print("\n\n")
     # display the letters on the rack
-    print("Rack:\t", end = "")
+    print("Rack:  ", end = "")
     for letter in rack:
-        print(letter, end = "\t")
+        print(letter, end = "   ")
     # display the score of each letter on the rack
     print("\n")
-    print("\t\t", end = "")
+    print("      ", end = "")
     for letter in rack:
-        print(lettersDict.get(letter), end = "\t")
+        print(lettersDict.get(letter), end = "   ")
 
 
 
@@ -989,6 +1060,7 @@ def mainProgram():
 
                 # get the words buildable from the rack with the fixed letters
                 buildableWords = searchWords(loopPosition, lettersRow, orientation)
+                #pprint.pprint(buildableWords)
                 
                 # convert them to plays
                 for entry in buildableWords:
@@ -1036,6 +1108,8 @@ else:
     #print(wordListCombined[0][0])
     d.close()
 
+temporaryBoard = copy.deepcopy(lettersOnBoard)
+
 setWordOnBoard("ERNST", "E8", "H")
 setWordOnBoard("AUFPASSEN", "E1", "V")
 
@@ -1044,7 +1118,15 @@ setWordOnBoard("AUFPASSEN", "E1", "V")
 
 #temporaryBoard = copy.deepcopy(lettersOnBoard)
 
-rack.append("?")
+#rack.append(list("?SBMNMF"))
+rack = list("?SBMNMF")
+# BUG: "BEMESSENER" shouldn't be possible on D8 Horizontal, neither should "BESAMEN" on B1 Horizontal
+# buildableWords is cut short. For some reason.
+
 #mainProgram()
 drawLettersFromBag()
 printBoard()
+
+input("PRESS ENTER")
+
+mainProgram()
