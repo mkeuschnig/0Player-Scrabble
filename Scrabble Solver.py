@@ -130,6 +130,8 @@ buildableWords = []
 # list for words that can be placed to a position
 availablePlays = []
 
+scoredPlays = []
+
 # list of the highest-scoring words
 bestPlays = []
 
@@ -689,8 +691,9 @@ def searchWords(position, lettersRow, horizontalOrVertical):
     for wordLength in range(combinedRackLength,wordLengthTarget,-1): # count backwards, 2 as the last length    
         if len(functionWords) > 0:
             #wordLengthTarget += int(combinedRackLength/3)
-            wordLengthTarget += 1
+            #wordLengthTarget += 1
             #continue
+            pass
         # Iterate by letter in the rack + letters in the fixed positions
         for letter in set(rack):
             #print(set(rack))
@@ -698,7 +701,7 @@ def searchWords(position, lettersRow, horizontalOrVertical):
             if letter == "?": 
                 continue
 
-            cutoffNumberOfWords = 10 # max number of words for each letter in the rack
+            cutoffNumberOfWords = 50 # max number of words for each letter in the rack
 
             buildableGenerator = (word for word in getFromWordList(wordLength,letter) if lettersCanBuildWord(word, combinedRack) is True)
 
@@ -706,7 +709,7 @@ def searchWords(position, lettersRow, horizontalOrVertical):
                 if uniqueWord not in functionWords and cutoffNumberOfWords >= 0: 
                     #print("Cutoff Number:",cutoffNumberOfWords)
                     functionWords.append(uniqueWord)
-                    cutoffNumberOfWords -= 1
+                    #cutoffNumberOfWords -= 1
 
                 #print(f"Words in buildableGenerator for Letter {letter} with {wordLength+2} letters:  ",len(wordListCombined[wordLength][numletter]))
                 #print(f"read: wordListCombined[{wordLength}][{numletter}]")
@@ -744,7 +747,7 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
     # grab number of jokers on the rack
     numJokers = rack.count("?")
 
-    print(f"Converting {word} into available play(s)...")
+    #print(f"Converting {word} into available play(s)...")
     for position in fixedPositions:
         
         check1 = False
@@ -797,10 +800,10 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
                 #print(f"Starting Position for {word}: {startPos}")
             
                 if startPos is not None and endPos is not None:
-                    print("Check 1 (Positions) passed.")
+                    #print("Check 1 (Positions) passed.")
                     check1 = True
                 else:
-                    print("!!Check 1 (Positions) failed.")
+                    #print("!!Check 1 (Positions) failed.")
                     continue
             
             
@@ -821,10 +824,10 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
 
                 # check if the letters on the rack and the additional fixed positions can spell the word.
                 if lettersCanBuildWord(word, "".join(rack) + additionalLetters) == True: 
-                    print("Check 2 (buildable from rack) passed.")
+                    #print("Check 2 (buildable from rack) passed.")
                     check2 = True
                 else:
-                    print("!!Check 2 (buildable from rack) failed")
+                    #print("!!Check 2 (buildable from rack) failed")
                     continue
 
 
@@ -835,12 +838,12 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
 
                 # Check if the letters from StartingPosition to ending Position are equal to the word
                 checkWord = getWordFromPositions(startPos, endPos, horizontalOrVertical, temporary = True)
-                print("CheckWord:", checkWord)
+                #print("CheckWord:", checkWord)
                 if word == checkWord:
-                    print("Check 3 (word placed equals word searched) passed.")
+                    #print("Check 3 (word placed equals word searched) passed.")
                     check3 = True
                 else:
-                    print("!!Check 3 (word placed equals word searched) failed.")
+                    #print("!!Check 3 (word placed equals word searched) failed.")
                     continue
 
 
@@ -858,27 +861,27 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
                 if squareBefore is None:
                     # ...only the square after the word needs to be empty.
                     if squareAfter == "0":
-                        print("Check 4 (Square before/after is empty) passed.")
+                        #print("Check 4 (Square before/after is empty) passed.")
                         check4 = True
                     else:
-                        print("!!Check 4 (Square before/after is empty) failed.")
+                        #print("!!Check 4 (Square before/after is empty) failed.")
                         continue
                 # if squareAfter is outside of the board (EndPos is either Column O or Row 15)...
                 elif squareAfter is None:
                     # ...only the square before the word needs to be empty.
                     if squareBefore == "0":
-                        print("Check 4 (Square before/after is empty) passed.")
+                        #print("Check 4 (Square before/after is empty) passed.")
                         check4 = True
                     else:
-                        print("!!Check 4 (Square before/after is empty) failed.")
+                        #print("!!Check 4 (Square before/after is empty) failed.")
                         continue
                 else:
                     #if the square before and after are inside the board (read: valid positions), then they must both be empty.
                     if squareAfter == "0" and squareBefore == "0":
-                        print("Check 4 (Square before/after is empty) passed.")
+                        #print("Check 4 (Square before/after is empty) passed.")
                         check4 = True
                     else:
-                        print("!!Check 4 (Square before/after is empty) failed.")
+                        #print("!!Check 4 (Square before/after is empty) failed.")
                         continue
 
 
@@ -1018,8 +1021,8 @@ def printBoard():
 
 # MAIN PROGRAM
 def mainProgram():
-    global fixedPositions, buildableWords, lettersRow
-    scoredPlays = []
+    global fixedPositions, buildableWords, lettersRow, scoredPlays
+    
     #COMMANDS BEFORE THE GAME
     running = True
     score = 0
@@ -1041,6 +1044,7 @@ def mainProgram():
         # THINKING
 
         for orientation in HorV:
+            print(orientation)
             # go over each row (A1-A15), horizontal
             for i in range(0,15):
                 if orientation == "H":
@@ -1059,6 +1063,7 @@ def mainProgram():
                 # convert them to plays
                 for entry in buildableWords:
                     #availablePlays
+                    
                     convertWordToPlay(entry, fixedPositions, orientation)
                 
                 # score the plays
@@ -1067,14 +1072,19 @@ def mainProgram():
             # select the 10 highest-scoring plays, add those to Moves (name pending)
 
             # reset the buildableWords and fixedPositions
+            #pprint.pprint(buildableWords)
+            pprint.pprint(availablePlays)
+
 
         for play in availablePlays:
             a,b,c = play[0], play[1], play[2]
             d = scoreWord(a,b,c)
-            if len(scoredPlays) <= 10:
-                scoredPlays.append([a,b,c,d])
-            else:
-                continue
+
+            #if len(scoredPlays) <= 10:
+                #scoredPlays.append([a,b,c,d])
+            #else:
+                #continue
+            scoredPlays.append([a,b,c,d])
 
         running = False
         
@@ -1086,6 +1096,12 @@ def mainProgram():
         print("\n")
         pprint.pprint(scoredPlays)
 
+        #buildableWords.clear()
+        #availablePlays.clear()
+        #scoredPlays.clear()
+        pprint.pprint(buildableWords)
+
+        pprint.pprint(availablePlays)
 
         input("All done, press Enter...")
         
