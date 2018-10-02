@@ -16,7 +16,9 @@
 # TODO: Culling of available plays - if a play using all rack-letters can be found, discard the others that dont use all of the rack
 # TODO: searchWords needs function arguments
 # TODO: Rework getting/setting letters/words into the normal and temporary boards
-# TODO: create function for logging - move away from print-statements
+# TODO: create function for logging - move away from print-statements --> use the logging-module: https://opensourcehacker.com/2016/05/22/python-standard-logging-pattern/
+# TODO: Move all Settings to either a separate file or to the top of a document
+# TODO: use OS to setup the shelve-file in the same folder as the Solver
 # also: general cleanup: split source into different files
 
 
@@ -135,7 +137,7 @@ scoredPlays = []
 # list of the highest-scoring words
 bestPlays = []
 
-# letters entered into the temporary Board are placed here and removed with removeTemporary
+# letters entered into the temporary Board are placed here and removed with removeTemporary()
 temporaryPositions = []
 
 
@@ -169,6 +171,7 @@ def substring_indexes(letter, word):
             break  # All occurrences have been found
         yield last_found
 
+
 # create the X/Y-Coordinate-system on the board:
 # Official Notation is A-O on the X-axis, 1-15 on the Y-axis
 # X = 0 and Y = 0 returns the top-left field.
@@ -180,23 +183,45 @@ def coordToPosition(x,y):
     resultX = chr(x+65)
     resultY = str(y+1)
     if x > 14 or y > 14 or x < 0 or y < 0:
+        #DEBUG
         #print(f"Invalid coordinate {(x,y)}in coordToPosition")
         return None # invalid coordinate on the board.
     return str(resultX+resultY)
 
 # Convert Scrabble-Notation to x,y-values
 def positionToCoord(positionString):
-    # returns coordinates x and y from given Scrabble-Notation, input "A1" would return 0,0, 
+    # returns coordinates x and y from given Scrabble-Notation, input "A1" would return 0,0 
     # ord("A") = 65
     resultX = ord(positionString[0])-65
-    resultY = int(positionString[1::])-1
+    resultY = int(positionString[1::])-1 # 1 is index 0
     if resultX < 0 or resultY < 0 or resultX > 14 or resultY > 14:
+        #DEBUG
         #print(f"Invalid position {positionString} in positionToCoord")
-        return None # invalid coordinate on the board.
+        return None, None # invalid coordinate on the board.
     return int(resultX), int(resultY)
 
-def getFromPosition(startPosition, endPosition = None, horizontalOrVertical = "0", mode = None, temporary = False):
+def getFromPosition(startPosition, endPosition = None, horizontalOrVertical = "0", mode = "letter", temporary = False):
     # collective function to access things on the (temporary or actual) board
+    
+    
+    startX, startY = positionToCoord(startPosition)
+    #if startX is None or startY is None: return None
+
+
+    if endPosition is None:
+    # if no endPosition is given, its equal to startPosition
+        endX, endY = positionToCoord(startPosition)
+    else:
+        endX, endY = positionToCoord(endPosition)
+
+
+    # Guard clause: invalid position, return None:
+    if startX is None or endX is None or startX < 0 or startX > (sizeH-1) or startY < 0 or startY > (sizeV-1) or endX < 0 or endX > (sizeH-1) or endY < 0 or endY > (sizeV-1):
+        return None
+    
+    # Guard clause: no mode: crash, 
+    
+    # orientation not H or V: crash, 
     
     # modes: 
     # "letter" - gets letter(s) from position, returns string
@@ -555,7 +580,10 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
 
 # load a dictionary to match the possible combinations from the rack with words in the dictionary
 def prepareDictionary():
-    testfile = open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\deutsch.txt")
+    #TODO: use OS.path to place the file relative to the script
+    #testfile = open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\deutsch.txt")
+    testfile = open(f"E:\Projekte\0Player-Scrabble\deutsch.txt")
+
     filewords = "".join(str(testfile.read().upper()))
     
     # List for regular expressions for words; starting with 2 letters, up to 15 letters.
@@ -633,7 +661,7 @@ def getFromWordList(length, letter):
     # convert the given letter back to a number ("A" would be 0)
     
     # LAZY HACK: STOPGAP-MEASURE TO USE UMLAUTS
-    if letter == "Ä":    letter = "A" # containing letter can be "A" OR "Ä"
+    if letter == "Ä":    letter = "A" # containing letter can be "A" OR "Ä" (which is also used in prepareDictionary)
     if letter == "Ö":    letter = "O"
     if letter == "Ü":    letter = "U"
     if letter == "?":    return [0][""]
@@ -1108,7 +1136,8 @@ def mainProgram():
 
 # COMMANDS
 # check if the shelve-file already exists
-DictionaryShelve = d = shelve.open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\dictionary.shelve", writeback = True)
+#DictionaryShelve = d = shelve.open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\dictionary.shelve", writeback = True)
+DictionaryShelve = d = shelve.open(r"E:\Projekte\0Player-Scrabble\dictionary.shelve", writeback = True)
 #d.close()
 #wordListCombined = d.get("wordListCombined")
 if d.get("wordListCombined") is None: 
@@ -1130,8 +1159,7 @@ setWordOnBoard("AUFPASSEN", "E1", "V")
 
 #rack.append(list("?SBMNMF"))
 #rack = list("?SBMNMF")
-# BUG: "BEMESSENER" shouldn't be possible on D8 Horizontal, neither should "BESAMEN" on B1 Horizontal
-# buildableWords is cut short. For some reason.
+
 
 #mainProgram()
 drawLettersFromBag()
@@ -1139,4 +1167,8 @@ printBoard()
 
 input("PRESS ENTER")
 
-mainProgram()
+#mainProgram()
+
+print(getFromPosition("A0"))
+print(getFromPosition("Y23"))
+print(getFromPosition("F4"))
