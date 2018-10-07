@@ -857,7 +857,8 @@ def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
                     squareBefore = getLetterFromPosition(modifyPosition(startPos, 0, -1, horizontalOrVertical), lettersOnly = True, temporary = False)
                     squareAfter = getLetterFromPosition(modifyPosition(endPos, 0, +1, horizontalOrVertical), lettersOnly = True, temporary = False)
 
-                # if squareBefore is outside of the board (StartPos is either Column A or Row 1)...
+                # if 
+                # squareBefore is outside of the board (StartPos is either Column A or Row 1)...
                 if squareBefore is None:
                     # ...only the square after the word needs to be empty.
                     if squareAfter == "0":
