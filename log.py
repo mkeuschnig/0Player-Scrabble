@@ -1,0 +1,1 @@
+# contains functions to create a log in scrabble-notation

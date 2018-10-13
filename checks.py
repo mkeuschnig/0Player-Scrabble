@@ -1,0 +1,1 @@
+# contains the checks used while searching Words or converting Plays.
