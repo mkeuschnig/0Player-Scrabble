@@ -1,26 +1,17 @@
-# TODO: Remove Letters from Rack when they're placed on the board
 # TODO: using threading-module to make the program multithreaded (optional).
 # TODO: culling for play-suggestions - when the Row already has 15 Letters, no play can be made
-#       when "BIENENHAUSES" is already in a (say, horizontal) row, reverse the lookup:
-#       Look at the wordlist and look for words that contains BIENENHAUSES in its entirety
+#       when "BIENENHAUS" is already in a (say, horizontal) row, reverse the lookup:
+#       Look at the wordlist and look for words that contains BIENENHAUS in it's entirety
 #       probably requires a Rework of the WordList to allow for word-searching
 #       idea: optional parameter "search", return the list of words of that letter that contain the "search" term
 # TODO: Performance improvements - searching the words is painfully slow ATM
-# TODO: Handling for the JOKER-character --> on it
-#       idea: add "Flags" to a play if: 
-#       * all rack-letters are used
-#       * jokers are used
-#       would improve readability a bit
-# TODO: at least one letter from the rack must be used
 # TODO: Rework of searchWords so it does actually run through at least 2 times to create shorter words too
 # TODO: Culling of available plays - if a play using all rack-letters can be found, discard the others that dont use all of the rack
-# TODO: searchWords needs function arguments
 # TODO: Rework getting/setting letters/words into the normal and temporary boards
-# TODO: create function for logging - move away from print-statements --> use the logging-module: https://opensourcehacker.com/2016/05/22/python-standard-logging-pattern/
-# TODO: Move all Settings to either a separate file or to the top of a document
-# TODO: use OS to setup the shelve-file in the same folder as the Solver
-# also: general cleanup: split source into different files
-
+# TODO: create function for logging - move away from print-statements
+# also: general cleanup: split source into different f iles
+# TODO: implement checkPlay() to cull plays that touch words and result in illegal words.
+# TODO: extract Check 1-5 from convertPlays - inlining hurts the DRY.
 
 
 
@@ -35,10 +26,14 @@
 # Warning: contains benign commentary.
 
 import random, pprint, re, os, shelve, copy
-from collections_extended import frozenbag
 
 
 ##PREPARATION AND VARIABLES
+
+# ***Configuration***
+searchPrecision = 0 # default: 100, 0 = search all words.
+
+
 
 
 # ***Distribution of letters:***
@@ -46,11 +41,14 @@ from collections_extended import frozenbag
 
 # GERMAN:
 lettersDict = {"E":1, "N":1, "S":1, "I":1, "R":1, "U":1, "A":1, "D":1, "H":2, "G":2, "L":2, "O":2, "M":3, "B":3, "W":3, "Z":3, "C":4, "F":4, "K":4, "P":4, "Ä":6, "J":6, "Ü":6, "V":6, "Ö":8, "X":8, "Q":10, "Y":10, "?":0, "T":1}
-#sorted letters: sletters = pprint.pformat(letters)
+# ENGLISH:
+#lettersDict = {"E":1, "N":1, "S":1, "I":1, "R":1, "U":1, "A":1, "D":1, "H":2, "G":2, "L":2, "O":2, "M":3, "B":3, "W":3, "Z":3, "C":4, "F":4, "K":4, "P":4, "Ä":6, "J":6, "Ü":6, "V":6, "Ö":8, "X":8, "Q":10, "Y":10, "?":0, "T":1}
 
 # b. define the amount of each letter in the letterBag
+# GERMAN:
 bagDict = {"E": 15, "N": 9, "S": 7, "I": 6, "R": 6, "U": 6, "A": 5, "D": 4, "H": 4, "G": 3, "L": 3, "O": 3, "M": 4, "B": 2, "W": 1, "Z": 1, "C": 2, "F": 2, "K": 2, "P": 1, "Ä": 1, "J": 1, "Ü": 1, "V": 1, "Ö": 1, "X": 1, "Q": 1, "Y": 1, "?": 2} #default Joker: 2
-#bagDict = {"E": 15, "N": 9, "S": 7, "I": 6, "R": 6, "U": 6, "A": 5, "D": 4, "H": 4, "G": 3, "L": 3, "O": 3, "M": 4, "B": 2, "W": 1, "Z": 1, "C": 2, "F": 2, "K": 2, "P": 1, "Ä": 0, "J": 1, "Ü": 0, "V": 1, "Ö": 0, "X": 1, "Q": 1, "Y": 1, "Joker": 0} #default Joker: 2
+# ENGLISH:
+
 # sorted letterBag = sorted pprint.pformat(letterBag)
 
 # create the letterBag for the letters to be put in
@@ -64,8 +62,9 @@ for letter, amount in bagDict.items(): # iterate over the entire dict, keys are 
 # mix the letters in the letterBag around
 random.shuffle(letterBag)
 
+
+
 # ***Playing field:***
-# define the board, to be printed to the console in its own function
 # legend: 
 # e - empty, 
 # c - center, 
@@ -120,7 +119,6 @@ lettersOnBoard = [
 rack = []
 
 # Words from the dictionary get split into a list by length, since we need to look for words with specific lengths
-
 wordListCombined = []
 
 # getLettersRow: Fixed positions for found letters in a row
@@ -132,12 +130,18 @@ buildableWords = []
 # list for words that can be placed to a position
 availablePlays = []
 
+# list for available plays that have a score
 scoredPlays = []
 
 # list of the highest-scoring words
 bestPlays = []
 
-# letters entered into the temporary Board are placed here and removed with removeTemporary()
+# list to log the plays into. An entire game could be recorded and replayed by going through the list
+# TODO: also log letters that get drawn from the bag.
+playLog = []
+
+# letters entered into the temporary Board are placed here and removed with removeTemporary
+# is updated in mainProgram() every cycle with copy.deepcopy(lettersOnBoard)
 temporaryPositions = []
 
 
@@ -145,6 +149,13 @@ temporaryPositions = []
 sizeV = len(lettersOnBoard)
 # horizontal size
 sizeH = len(lettersOnBoard[0])
+
+# integer to store the number of points.
+gameScore = 0
+
+# integer to store the turn-number
+
+gameTurn = 1
 
 
 
@@ -173,7 +184,7 @@ def substring_indexes(letter, word):
 
 
 # create the X/Y-Coordinate-system on the board:
-# Official Notation is A-O on the X-axis, 1-15 on the Y-axis
+# Official Notation is A-O on the Y-axis, 1-15 on the X-axis
 # X = 0 and Y = 0 returns the top-left field.
 # convert x,y-values to Scrabble-Notation
 def coordToPosition(x,y):
@@ -183,45 +194,23 @@ def coordToPosition(x,y):
     resultX = chr(x+65)
     resultY = str(y+1)
     if x > 14 or y > 14 or x < 0 or y < 0:
-        #DEBUG
         #print(f"Invalid coordinate {(x,y)}in coordToPosition")
         return None # invalid coordinate on the board.
     return str(resultX+resultY)
 
 # Convert Scrabble-Notation to x,y-values
 def positionToCoord(positionString):
-    # returns coordinates x and y from given Scrabble-Notation, input "A1" would return 0,0 
+    # returns coordinates x and y from given Scrabble-Notation, input "A1" would return 0,0, 
     # ord("A") = 65
     resultX = ord(positionString[0])-65
-    resultY = int(positionString[1::])-1 # 1 is index 0
+    resultY = int(positionString[1::])-1
     if resultX < 0 or resultY < 0 or resultX > 14 or resultY > 14:
-        #DEBUG
         #print(f"Invalid position {positionString} in positionToCoord")
-        return None, None # invalid coordinate on the board.
+        return None # invalid coordinate on the board.
     return int(resultX), int(resultY)
 
-def getFromPosition(startPosition, endPosition = None, horizontalOrVertical = "0", mode = "letter", temporary = False):
+def getFromPosition(startPosition, endPosition = None, horizontalOrVertical = "0", mode = None, temporary = False):
     # collective function to access things on the (temporary or actual) board
-    
-    
-    startX, startY = positionToCoord(startPosition)
-    #if startX is None or startY is None: return None
-
-
-    if endPosition is None:
-    # if no endPosition is given, its equal to startPosition
-        endX, endY = positionToCoord(startPosition)
-    else:
-        endX, endY = positionToCoord(endPosition)
-
-
-    # Guard clause: invalid position, return None:
-    if startX is None or endX is None or startX < 0 or startX > (sizeH-1) or startY < 0 or startY > (sizeV-1) or endX < 0 or endX > (sizeH-1) or endY < 0 or endY > (sizeV-1):
-        return None
-    
-    # Guard clause: no mode: crash, 
-    
-    # orientation not H or V: crash, 
     
     # modes: 
     # "letter" - gets letter(s) from position, returns string
@@ -288,12 +277,12 @@ def getPositionRange(startPosition, endPosition, horizontalOrVertical):
 
 
 def getFixedPositions(position, horizontalOrVertical = "0"):
-    # iterate through the board, note the positions of the already-placed letters
+    # iterate through the board, return a list of positions with already-placed letters
     global fixedPositions
     fixedPositions = []
     x,y = positionToCoord(position)
 
-    # iterate the row letter by letter, return the already-placed letters on the board in a list
+    # iterate the row square by square, return the already-placed letters on the board in a list
 
     if horizontalOrVertical.upper() == "H":
         for counter in range(0, sizeH):
@@ -314,7 +303,9 @@ def getFixedPositions(position, horizontalOrVertical = "0"):
 
 
 def removeTemporaryLetters():
+    # access the temporary board and the list with the temporary positions
     global temporaryBoard, temporaryPositions
+
     #guard clause: temporaryPositions must be longer than 0
     if len(temporaryPositions) is 0:
         return
@@ -323,12 +314,13 @@ def removeTemporaryLetters():
     for entry in temporaryPositions:
         x,y = positionToCoord(entry)
         # remove them only if the square on the actual board is empty
-        if temporaryBoard[y][x] is not lettersOnBoard[y][x]:
+        if temporaryBoard[y][x] != lettersOnBoard[y][x]:
             #print(f"Removing from temporaryBoard: {temporaryBoard[y][x]}")
             temporaryBoard[y][x] = "0"
         else:
             #print(f"NOT removing temporaryBoard: {temporaryBoard[y][x]} ({lettersOnBoard[y][x]} already on the board)")
-            pass
+            #pass
+            continue
     temporaryPositions.clear()
 
 
@@ -338,7 +330,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
 # if vertical, check along lettersOnBoard[x][number]: 
 
     startX,startY = positionToCoord(positionStart)
-    numChecked = 0
+    #numChecked = 0
     if positionEnd is None and horizontalOrVertical is None:
         if lettersOnBoard[startY][startX] == "0":
             return True
@@ -349,7 +341,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
         if horizontalOrVertical[0].upper() == "H":
             endY = startY
             for i in range(startX, endX+1):
-                numChecked += 1
+                #numChecked += 1
                 if lettersOnBoard[startY][i] is not "0":
                     #print(f"Square {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)} not empty. ")
                     #print(f"Square {coordToPosition(i,startY)} taken up by: {lettersOnBoard[startY][i]}")
@@ -359,7 +351,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
         if horizontalOrVertical[0].upper() == "V":
             endX = startX
             for i in range(startY, endY+1):
-                numChecked += 1
+                #numChecked += 1
                 if lettersOnBoard[i][startX] is not "0":
                     #print(f"Square {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)} not empty. ")
                     #print(f"Square {coordToPosition(i,startY)} taken up by: {lettersOnBoard[i][startX]}")
@@ -368,7 +360,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
             return True
         else:
             #print("function isPositionEmpty: 'H' or 'V' expected for variable 'horizontalOrVertical'.")
-            pass
+            #pass
             return None
 
 
@@ -412,6 +404,7 @@ def getWordFromPositions(positionStart, positionEnd, horizontalOrVertical = "0",
 
 
 def getWordModifierFromPosition(currentModifier, position = None, x = None, y = None):
+    global gameTurn
     # multiplies the current Word-modifier by one or more word-modifiers in boardValues
     # TODO: check whether there's a letter already on the board. 
     # ALSO TODO - check if the position can actually be played
@@ -421,7 +414,8 @@ def getWordModifierFromPosition(currentModifier, position = None, x = None, y = 
 
     if boardValues[y][x] == "TW" and isPositionEmpty(position):
         currentModifier *= 3
-    elif (boardValues[y][x] == "DW" or boardValues[y][x] == "c") and isPositionEmpty(position):
+    #elif (boardValues[y][x] == "DW" or boardValues[y][x] == "c") and isPositionEmpty(position):
+    elif (boardValues[y][x] == "DW" or boardValues[y][x] == "c") and (isPositionEmpty(position) or gameTurn == 1):
         currentModifier *= 2
     #print("Current modifier:", currentModifier)
     return currentModifier
@@ -430,22 +424,38 @@ def getWordModifierFromPosition(currentModifier, position = None, x = None, y = 
 
 # create another function that returns the letter on a square.
 # if there's no Letter on the board ("0"), return the modifier
-def getLetterFromPosition(position = "0", x = None, y = None, lettersOnly = False, temporary = False):
+def getLetterFromPosition(position = "0", x = None, y = None, lettersOnly = False, temporary = False, displayJokers = False):
     #
-    global temporaryBoard
+    global temporaryBoard, lettersOnBoard
 
     # returns a single Letter from a given position or x/y-value
+    # if an invalid position is given, return None.
     if position is None:
         return None
+
+
     if position is not "0":
         x,y = positionToCoord(position)
+
+
+    if temporary is True:
+        functionBoard = temporaryBoard
+    else:
+        functionBoard = lettersOnBoard
+
+    # if only the letters on the board are needed (fixed positions)
     if lettersOnBoard[y][x] == "0" and lettersOnly is False:
         return boardValues[y][x]
     else:
-        if temporary is True:
-            return temporaryBoard[y][x]
+        letter = functionBoard[y][x]
+        # for the purpose of searchWords(), a placed joker-character is used as its actual letter, not a joker.
+        if len(letter) == 2:
+            if displayJokers is True:
+                return letter
+            else:
+                return letter[1]
         else:
-            return lettersOnBoard[y][x]
+            return letter
 
 
 
@@ -486,25 +496,52 @@ def setLetterToPosition(letter, position = None, x = None, y = None, temporary =
 
 # function for placing a word onto the board, given a word, a starting position and horizontal/vertial alignment
 def setWordOnBoard(word, position, horizontalOrVertical, temporary = False):
-    wordlength = len(word)
     x,y = positionToCoord(position)
+    mod = 0
+
+    if "?" in word:
+        # wordLength is one shorter, since the ?-character and the one afterwards are placed as one
+        wordLength = len(word) -1
+    else:
+        wordLength = len(word)
+
+
     #print(f"Placing {word} at {position}, {horizontalOrVertical}")
-    for i in range(0,len(word)):
+    # count from 0 to the length of the word
+    for i in range(0,wordLength):       
+        letter = word[i+mod]
+
+        # ?-character and the one afterwards are placed as one
+        if letter == "?":
+            # string position is modified by 1 for the rest of the word.
+            mod += 1
+            letter += word[i+mod]
+            #continue
+
+
         if horizontalOrVertical.upper() == "H":
             # Place the word letter by letter along the x-axis
-            setLetterToPosition(word[i],None, x+i, y, temporary)
+            setLetterToPosition(letter,None, x+i, y, temporary)
             # TODO: grab letters from the rack to write
         if horizontalOrVertical.upper() == "V":
             # Place the word letter by letter along the x-axis
-            setLetterToPosition(word[i],None, x, y+i, temporary)
+            setLetterToPosition(letter,None, x, y+i, temporary)
 
 
 def scoreLetter(letter, position = None, x = None, y = None):
     # returns a score of a letter on a position, with modifiers.
     # check the position of the given letter in boardValues
+
+    
     if position is not None:
         x,y = positionToCoord(position)
+
+    # if the letter has a length of 2, str[0] is the ?, str[1] is the actual letter.
+    # letter can only be a length of 2 if there's a Joker in the square.
+    if len(letter) == 2: return 0
+
     position = coordToPosition(x,y)
+
     modifier = 1
     # getting a value from a dict: dict.get("Key")
     if boardValues[y][x] == "DL" and isPositionEmpty(position):
@@ -523,15 +560,22 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
     # and modify the score of the entire word. A word can have more than one multiplier.
     
     
-    # extract an eventual joker-character
-    jokers = list(substring_indexes("(", word))
+    # extract an eventual joker-character, the word "ST?ERN" would become "ST?RN"
+    jokers = list(substring_indexes("?", word))
     if len(jokers) > 0:
-        for entry in jokers:
-            replaceIndex = int(entry) + 1 
-            #print(word)
-            word = word[:replaceIndex] + "?" + word[replaceIndex+1:]
-            word = word.replace("(","")
-            word = word.replace(")","")
+      for entry in jokers:
+          replaceIndex = int(entry) + 1
+          word = word[:replaceIndex-1] + "?" + word[replaceIndex+1:]
+
+    #print("SCOREWORD:",word)
+    #jokers = list(substring_indexes("(", word))
+    #if len(jokers) > 0:
+    #    for entry in jokers:
+    #        replaceIndex = int(entry) + 1 
+    #        #print(word)
+    #        word = word[:replaceIndex] + "?" + word[replaceIndex+1:]
+    #        word = word.replace("(","")
+    #        word = word.replace(")","")
             #print(word)
 
     # function does not actually place a word or a letter, it just returns a score for a given word on a given position.
@@ -540,7 +584,8 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
     wordScore = 0
     letterScore = 0
     wordLength = len(word)
-    wordModifier = 1
+    # wordMultiplier: Double Word, Triple Word
+    wordMultiplier = 1
 
 
 
@@ -549,7 +594,7 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
         endX = startX + wordLength
         endY = startY
         for i in range(startX, endX):
-            wordModifier = getWordModifierFromPosition(wordModifier, None, i, startY)
+            wordMultiplier = getWordModifierFromPosition(wordMultiplier, None, i, startY)
         # score the word
         for letter in range(wordLength):
             wordScore += scoreLetter(word[letter],None,startX + letter, startY)
@@ -559,17 +604,18 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
         endX = startX
         endY = startY + wordLength
         for i in range(startY, endY):
-            wordModifier = getWordModifierFromPosition(wordModifier, None, startX, i)
+            wordMultiplier = getWordModifierFromPosition(wordMultiplier, None, startX, i)
         # score the word
         for letter in range(wordLength):
             wordScore += scoreLetter(word[letter],None,startX, startY + letter)
     else:
-        print("function scoreWord: 'H' or 'V' expected for variable 'horizontalOrVertical'.")
+        pass
+        #print("function scoreWord: 'H' or 'V' expected for variable 'horizontalOrVertical'.")
    
     #print("WordScore: ", wordScore)
-    #print("WordModifier:", wordModifier)
-    #print(f"Total Score for {word} on {positionStart}: {wordScore * wordModifier}")
-    return wordScore * wordModifier
+    #print("WordModifier:", wordMultiplier)
+    #print(f"Total Score for {word} on {positionStart}: {wordScore * wordMultiplier}")
+    return wordScore * wordMultiplier
 
 
 
@@ -580,11 +626,9 @@ def scoreWord(word, positionStart, horizontalOrVertical = "H"):
 
 # load a dictionary to match the possible combinations from the rack with words in the dictionary
 def prepareDictionary():
-    #TODO: use OS.path to place the file relative to the script
-    #testfile = open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\deutsch.txt")
-    testfile = open(f"E:\Projekte\0Player-Scrabble\deutsch.txt")
-
-    filewords = "".join(str(testfile.read().upper()))
+    # TODO: OS-PATH HERE
+    dictionaryFile = open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\deutsch.txt")
+    filewords = "".join(str(dictionaryFile.read().upper()))
     
     # List for regular expressions for words; starting with 2 letters, up to 15 letters.
     regExListLength = [
@@ -636,19 +680,11 @@ def prepareDictionary():
             # iterate through the words in the temporary list
             for word in tempWords:
                 
-                # if the Regex has a match (read: if currentLetter is contained in the current word), append it to the wordList at length[wordlength][letterInAlphabet]
+                # if the Regex has a match (read: if currentLetter is contained in the current word), append it to the wordList at [wordlength][letterInAlphabet]
                 if regExContains.match(word) is not None: wordListCombined[i][j].append(word)
            
-            #wordListByLength.append() # Append the matches of the combined length (2-15) and letter (0-25)
-            #wordListCombined[i].append(["?"])
             #print(f"Words with {i+2} letters, Letter {currentLetter}: {len(wordListCombined[i][j])}")
             
-
-    # add the joker-letter with empty lists
-    #for i in range(0,len(regExListLength)):
-    #    wordListCombined.append(["?"])
-        
-
     # write the completed wordlist to the shelve-file.
     d["wordListCombined"] = wordListCombined
     d.close()
@@ -660,285 +696,41 @@ def getFromWordList(length, letter):
     if length > 15: length = 15
     # convert the given letter back to a number ("A" would be 0)
     
-    # LAZY HACK: STOPGAP-MEASURE TO USE UMLAUTS
-    if letter == "Ä":    letter = "A" # containing letter can be "A" OR "Ä" (which is also used in prepareDictionary)
+    # LAZY HACK: STOPGAP-MEASURE TO USE UMLAUTS (the Wordlist stores Umlauts as regular characters as well)
+    if letter == "Ä":    letter = "A" # containing letter can be "A" OR "Ä"
     if letter == "Ö":    letter = "O"
     if letter == "Ü":    letter = "U"
     if letter == "?":    return [0][""]
     
     numLetter = ord(letter)-65
 
-
     return wordListCombined[length-2][numLetter]
 
 
 
-def getLettersRow(position, horizontalOrVertical = "0"):
-    # letters on Board: take a row (or column), parse them them to a String
+#def getLettersRow(position, horizontalOrVertical = "0"):
+#    # letters on Board: take a row (or column), parse them them to a String
        
-    x,y = positionToCoord(position)
+#    x,y = positionToCoord(position)
     
-    lettersRow = ""
-    # iterate the row letter by letter, return the placed letters as string, empty spaces on the board with 0s.
+#    lettersRow = ""
+#    # iterate the row letter by letter, return the placed letters as string, empty spaces on the board with 0s.
 
-    if horizontalOrVertical.upper() == "H":
-        for counter in range(0, sizeH):
-            lettersRow += "".join(lettersOnBoard[y][counter])
-            #if lettersOnBoard[y][counter] is not "0": fixedPositions.append(coordToPosition(counter,y))
+#    if horizontalOrVertical.upper() == "H":
+#        for counter in range(0, sizeH):
+#            lettersRow += "".join(lettersOnBoard[y][counter])
+#            #if lettersOnBoard[y][counter] is not "0": fixedPositions.append(coordToPosition(counter,y))
 
-    elif horizontalOrVertical.upper() == "V":
-        for counter in range(0, sizeV):
-            lettersRow += "".join(lettersOnBoard[counter][x])
-            #if lettersOnBoard[counter][x] is not "0": fixedPositions.append(coordToPosition(x,counter))
+#    elif horizontalOrVertical.upper() == "V":
+#        for counter in range(0, sizeV):
+#            lettersRow += "".join(lettersOnBoard[counter][x])
+#            #if lettersOnBoard[counter][x] is not "0": fixedPositions.append(coordToPosition(x,counter))
 
-    else: 
-        print("horizonalOrVertical in getLettersRow not given or wrong.")
+#    else: 
+#        print("horizonalOrVertical in getLettersRow not given or wrong.")
 
-    #print(fixedPositions)
-    return lettersRow
-
-
-def searchWords(position, lettersRow, horizontalOrVertical):
-    #
-    #global buildableWords
-    global rack
-
-    functionWords = []
-    combinedRack = "".join(rack) + lettersRow.replace("0","")
-    combinedRackLength = len(combinedRack)
-
-    #print(combinedRack)
-    # generate a list of possible words from the combined rack    
-    # grab the row of letters on the board
-    # Iterate by length of the words, starting with the longest possible
-    
-    if combinedRackLength > 15: combinedRackLength = 15
-    
-    wordLengthTarget = 0
-
-    for wordLength in range(combinedRackLength,wordLengthTarget,-1): # count backwards, 2 as the last length    
-        if len(functionWords) > 0:
-            #wordLengthTarget += int(combinedRackLength/3)
-            #wordLengthTarget += 1
-            #continue
-            pass
-        # Iterate by letter in the rack + letters in the fixed positions
-        for letter in set(rack):
-            #print(set(rack))
-            # skip creating a Generator if the letter is a joker
-            if letter == "?": 
-                continue
-
-            cutoffNumberOfWords = 50 # max number of words for each letter in the rack
-
-            buildableGenerator = (word for word in getFromWordList(wordLength,letter) if lettersCanBuildWord(word, combinedRack) is True)
-
-            for uniqueWord in buildableGenerator:
-                if uniqueWord not in functionWords and cutoffNumberOfWords >= 0: 
-                    #print("Cutoff Number:",cutoffNumberOfWords)
-                    functionWords.append(uniqueWord)
-                    #cutoffNumberOfWords -= 1
-
-                #print(f"Words in buildableGenerator for Letter {letter} with {wordLength+2} letters:  ",len(wordListCombined[wordLength][numletter]))
-                #print(f"read: wordListCombined[{wordLength}][{numletter}]")
-    
-                #pprint.pprint(sorted(buildableWords))
-    #print("buildable Words:",len(buildableWords))            
-    return functionWords
-
-
-
-def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
-    global availablePlays, temporaryBoard, lettersOnBoard
-    #functionPlays = []
-    #resetBoard = copy.deepcopy(temporaryBoard)
-    
-
-    # guard clauses: 0 fixedPositions, HoV not given or wrong
-    if len(horizontalOrVertical) == 0 or horizontalOrVertical is None:
-        #print("horizontalOrVertical is wrong: 'H' or 'V' expected")
-        return
-
-    if len(fixedPositions) == 0: return
-
-
-    # ALSO TODO: a string-function that returns the indices of given Letters from a word, should there be more than one.
-    # right now, check1 gets confu
-    # sed if a Letter occurs more than once in a string.
-
-    # takes a word, checks if it can be played in a row/column, returns starting positions for a play (e.g. ("HEILER", H8, V))
-    
-
-    # iterate through the already-placed letters on the board
-    
-    
-    # grab number of jokers on the rack
-    numJokers = rack.count("?")
-
-    #print(f"Converting {word} into available play(s)...")
-    for position in fixedPositions:
-        
-        check1 = False
-        check2 = False
-        check3 = False
-        check4 = False
-
-        startPos = 0
-        # convert the fixed position to its corresponding letter
-        letter = getLetterFromPosition(position)
-
-        # check for an occurence of a fixed position-letter in the word
-        # TODO: create function to return a list of occurences of a substring in a string
-        #positionInString = word.find(letter)
-
-        
-        #testing
-        fixedLetterInWord = list(substring_indexes(letter,word))
-
-        #before:
-        # if positionInString is not -1:
-
-        if len(fixedLetterInWord) is not 0:
-            print("\n")
-
-            #iterate though every occurence of the fixed position in the given word
-            for index in fixedLetterInWord:       
-            
-                # reset temporary board before starting the Checks.
-                #print(f"Number of TemporaryPositions: {len(temporaryPositions)}")
-                removeTemporaryLetters() 
-
-                # the starting position is (FixedPosition minus index of FixedPosition) in word       
-
-
-                # Check 1: The coordinates must be A-O, and 0-15 for a starting postion     
-                #convert position to coordinate to do the math
-                x,y = positionToCoord(position)
-                # Horizontal
-                if horizontalOrVertical[0] == "H":  
-                    startPos = coordToPosition(x - index, y)
-                    endPos = modifyPosition(startPos, len(word)-1, 0, horizontalOrVertical)
-                    #print("Ending Position:",endPos)
-                # Vertical 
-                if horizontalOrVertical[0] == "V":  
-                    startPos = coordToPosition(x, y - index)
-                    endPos = modifyPosition(startPos, 0, len(word)-1, horizontalOrVertical)
-                    #print("Ending Position:",endPos)
-                # coordToPosition returns None if it's given invalid coordinates.
-                #print(f"Starting Position for {word}: {startPos}")
-            
-                if startPos is not None and endPos is not None:
-                    #print("Check 1 (Positions) passed.")
-                    check1 = True
-                else:
-                    #print("!!Check 1 (Positions) failed.")
-                    continue
-            
-            
-                # Check 2: the letters on the rack must be able to make the play
-                # get a list of positions from Start to End
-                wordRange = getPositionRange(startPos,endPos,horizontalOrVertical)
-
-                #if a fixed Position is in the wordRange, add the letter from that fixed position to additionalLetters
-                additionalLetters = ""
-
-                #reduce the list to only the fixed positions in the wordRange
-                fixedPositionsInRange = list(set(wordRange).intersection(fixedPositions))
-
-                # iterate through the fixed positions
-                for counterPosition in fixedPositionsInRange:
-                    additionalLetters += "".join(getLetterFromPosition(counterPosition, lettersOnly = True))
-                #print("Additional Letters:", additionalLetters)
-
-                # check if the letters on the rack and the additional fixed positions can spell the word.
-                if lettersCanBuildWord(word, "".join(rack) + additionalLetters) == True: 
-                    #print("Check 2 (buildable from rack) passed.")
-                    check2 = True
-                else:
-                    #print("!!Check 2 (buildable from rack) failed")
-                    continue
-
-
-
-                # Check 3: the letters from starting position to ending position must actually spell the word.
-                # Place Letters into temporary Board
-                setWordOnBoard(word, startPos, horizontalOrVertical, temporary = True)
-
-                # Check if the letters from StartingPosition to ending Position are equal to the word
-                checkWord = getWordFromPositions(startPos, endPos, horizontalOrVertical, temporary = True)
-                #print("CheckWord:", checkWord)
-                if word == checkWord:
-                    #print("Check 3 (word placed equals word searched) passed.")
-                    check3 = True
-                else:
-                    #print("!!Check 3 (word placed equals word searched) failed.")
-                    continue
-
-
-
-                # Check 4: before and after the word is an empty space (ie the word doesn't actually collide with other words)
-                # exception: the starting position is A or 0, or the ending position is O or 15 (in which case getLetterFromPosition returns None)
-                if horizontalOrVertical[0] == "H":
-                    squareBefore = getLetterFromPosition(modifyPosition(startPos, -1, 0, horizontalOrVertical), lettersOnly = True, temporary = False)
-                    squareAfter = getLetterFromPosition(modifyPosition(endPos, +1, 0, horizontalOrVertical), lettersOnly = True, temporary = False)
-                if horizontalOrVertical[0] == "V": 
-                    squareBefore = getLetterFromPosition(modifyPosition(startPos, 0, -1, horizontalOrVertical), lettersOnly = True, temporary = False)
-                    squareAfter = getLetterFromPosition(modifyPosition(endPos, 0, +1, horizontalOrVertical), lettersOnly = True, temporary = False)
-
-                # if squareBefore is outside of the board (StartPos is either Column A or Row 1)...
-                if squareBefore is None:
-                    # ...only the square after the word needs to be empty.
-                    if squareAfter == "0":
-                        #print("Check 4 (Square before/after is empty) passed.")
-                        check4 = True
-                    else:
-                        #print("!!Check 4 (Square before/after is empty) failed.")
-                        continue
-                # if squareAfter is outside of the board (EndPos is either Column O or Row 15)...
-                elif squareAfter is None:
-                    # ...only the square before the word needs to be empty.
-                    if squareBefore == "0":
-                        #print("Check 4 (Square before/after is empty) passed.")
-                        check4 = True
-                    else:
-                        #print("!!Check 4 (Square before/after is empty) failed.")
-                        continue
-                else:
-                    #if the square before and after are inside the board (read: valid positions), then they must both be empty.
-                    if squareAfter == "0" and squareBefore == "0":
-                        #print("Check 4 (Square before/after is empty) passed.")
-                        check4 = True
-                    else:
-                        #print("!!Check 4 (Square before/after is empty) failed.")
-                        continue
-
-
-                # figure out which letter(s) of the word is/are used by the joker(s) - modify the word before adding it to available plays.
-                if numJokers > 0:   
-                    word = convertWordToJoker(word,"".join(rack) + additionalLetters)
-
-                # if all checks are True, append the (unique) play to the list functionPlays
-                if check1 is True and check2 is True and check3 is True and check4 is True:
-                    #if [word, startPos, horizontalOrVertical] not in functionPlays:
-                    #    functionPlays.append([word, startPos, horizontalOrVertical])
-                    if [word, startPos, horizontalOrVertical] not in availablePlays:
-                        availablePlays.append([word, startPos, horizontalOrVertical])
-        
-        # reset temporary board after each iteration
-            #removeTemporaryLetters()   
-        #temporaryBoard = copy.deepcopy(resetBoard)
-        #print(availablePlays)
-    #return functionPlays
-
-
-
-
-
-#TODO
-def checkPlay():
-    pass
-    # check if the available play neighbors another word or extends an existing word - if the word exists, the play is OK and that neighboring word is scored as well.
-    # if the neighboring word doesn't exist, the play is not possible.
+#    #print(fixedPositions)
+#    return lettersRow
 
 
 def lettersCanBuildWord(wordToCheck, lettersGiven):
@@ -966,38 +758,351 @@ def lettersCanBuildWord(wordToCheck, lettersGiven):
             continue
     return True
 
+def countRackLettersUsed(wordToCheck, lettersNotOnRack):
+    # returns a list of the rack-letters used in a play.
+    # the word can already be built with the rack-letters (since availablePlays calls lettersCanBuildWord).
 
-def convertWordToJoker(wordToCheck, lettersGiven):
-    # like lettersCanBuildWord, but returns the Word with Jokers replacing the missing letters
-    jokerWord = str(wordToCheck)
-    
-    wordToCheck = frozenbag(wordToCheck)
-    
-    lettersGiven = frozenbag(lettersGiven) # = letters on the board + letters on the rack
 
+    global rack
+    numJokers = rack.count("?")
+
+    resultList = []
     
-    # handling the joker-character:
-    # count the jokers in lettersGiven (= the rack)
-    jokers = lettersGiven.count("?") # either 1 or 2 when this function is called.
+    requiredWord = wordToCheck
+
+    # reduce wordToCheck to only the letters required from the rack
+
+    for L in lettersNotOnRack:
+        requiredWord = requiredWord.replace(L,"",1)
+        #JokerLetter = letter + getJokerLetter(requiredWord)
     
+    # iterate over the remaining letters required to build the word from the rack
+    for letter in requiredWord:
+        # the letter must be in the rack.
+        # the amount of that letter in the required word must be less or equal to the amount of that letter in the rack
+        # if that letter is already in the resultList, the amount of that letter in the required word must be higher than that of the ResultList.
+        if letter in rack and rack.count(letter) >= requiredWord.count(letter) and resultList.count(letter) <= requiredWord.count(letter):
+            resultList.append(letter)
+
+        # if the letter happens to not be in the rack, try using a joker.
+        else:
+            if numJokers > 0:
+                # this works for ONE joker.
+                #resultlist.append("?"+str(getJokerLetter(requiredWord)))
+                resultList.append("?"+letter)
+                numJokers -= 1
+            else:
+                continue
+    return resultList
     
-    for letter in wordToCheck.unique_elements():
-        #DEBUG:
-        #print(f"letter: {letter}, amount in word '{wordToCheck}': {wordToCheck.count(letter)}")
-        #print(f"available in {lettersGiven}: {lettersGiven.count(letter)}")
-        if jokers > 0:
-            if(wordToCheck.count(letter) > lettersGiven.count(letter)):
+
+def getJokerLetter(wordToCheck):
+    # returns the letter(s) that gets placed as Joker in a play.
+    global rack
+
+
+    pass
+
+
+
+
+def convertWordToJoker(wordToConvert, lettersGiven, fixedPositions = []):
+    # TODO: right now, only returns the first not-found letter as a joker - if the missing letter is a fixed position, adjust accordingly.
+    # case: "F(E)RNSTE" should be FERNST(E), since "ERNST" is already fixed on the board.
+    # returns the word
+    jokerWord = str(wordToConvert)
+    numJokers = lettersGiven.count("?")
+    for letter in set(wordToConvert):
+        #print(letter)
+        #print("Count in ListWordTarget:", listWordTarget.count(letter))
+        #print("Count in ListWordSource:", listWordSource.count(letter))
+        countSource = lettersGiven.count(letter)
+        countTarget = wordToConvert.count(letter)
+        if countSource < countTarget:
+            # try to use the joker(s) on the first missing letter
+            # must have at least 1 joker, and the number of Letters in Source need to be equal to counted letters + number of jokers
+            if numJokers > 0 and countSource+numJokers >= countTarget:
+                #print(f"{countSource} + {numJokers}=", countSource + numJokers)
+                #print(f"Letter {letter} is a Joker")
+                numJokers -= 1
                 jokerLetter = letter
-                jokers -= 1
-        # replace a single letter with a joker
-                jokerWord = jokerWord.replace(letter,"("+letter+")",1)
+                # replace the single letter with a joker, mark it with parentheses ():
+                #jokerWord = jokerWord.replace(letter,"("+letter+")",1)
+                jokerWord = jokerWord.replace(letter,"?"+letter,1)
+                continue
+        else:
+            continue
     return jokerWord
+
+
+
+
+def searchWords(position, fixedPositions, horizontalOrVertical):
+    #TODO: Handling for turn 1 (no fixedPositions on the board)
+
+    #global buildableWords
+    global rack, searchPrecision
+
+    functionWords = []
+    combinedRack = ""
+    #for FP in list(getFixedPositions(position, horizontalOrVertical)):
+    if len(fixedPositions) > 0:
+        for FP in fixedPositions:
+            combinedRack+= "".join(getLetterFromPosition(FP,displayJokers=False))
+    #print(rack)
+    combinedRack += "".join(rack)
+
+
+    #combinedRack = "".join(rack) + lettersRow.replace("0","")
+    combinedRackLength = len(combinedRack)
+
+    # DEBUG
+    #print(combinedRack)
+    # generate a list of possible words from the combined rack
+    # Iterate by length of the words, starting with the longest possible
+    
+    if combinedRackLength > 15: combinedRackLength = 15
+    
+    wordLengthTarget = 0
+
+    for wordLength in range(combinedRackLength,wordLengthTarget,-1): # count backwards, 2 as the last length    
+        if len(functionWords) > 0:
+            #wordLengthTarget += int(combinedRackLength/3)
+            #wordLengthTarget += 1
+            #continue
+            pass
+        # Iterate by letter in the rack + letters in the fixed positions
+        for letter in set(rack):
+            #print(set(rack))
+            # skip creating a Generator if the letter is a joker
+            if letter == "?": 
+                continue
+
+            cutoffNumberOfWords = searchPrecision # max number of words for each letter in the rack
+
+            buildableGenerator = (word for word in getFromWordList(wordLength,letter) if lettersCanBuildWord(word, combinedRack) is True)
+
+            for uniqueWord in buildableGenerator:
+                if uniqueWord not in functionWords and cutoffNumberOfWords >= 0: 
+                    #print("Cutoff Number:",cutoffNumberOfWords)
+                    functionWords.append(uniqueWord)
+                    if searchPrecision > 0:
+                        cutoffNumberOfWords -= 1
+
+                #print(f"Words in buildableGenerator for Letter {letter} with {wordLength+2} letters:  ",len(wordListCombined[wordLength][numletter]))
+                #print(f"read: wordListCombined[{wordLength}][{numletter}]")
+    
+                #pprint.pprint(sorted(buildableWords))
+    #print("buildable Words:",len(buildableWords))            
+    return functionWords
+
+
+
+def convertWordToPlay(word, fixedPositions, horizontalOrVertical):
+    # TODO: if it's the first turn, the current letter on the center can't be used from the rack.
+
+    global availablePlays, temporaryBoard, lettersOnBoard, gameTurn
+    #functionPlays = []
+    #resetBoard = copy.deepcopy(temporaryBoard)
+    
+
+    # guard clauses: 0 fixedPositions, HoV not given or wrong
+    if len(horizontalOrVertical) == 0 or horizontalOrVertical is None:
+        #print("horizontalOrVertical is wrong: 'H' or 'V' expected")
+        return
+
+    if len(fixedPositions) == 0 and gameTurn > 1: return
+
+    # takes a word, checks if it can be played in a row/column, returns starting positions for a play (e.g. ("HEILER", H8, V))  
+
+    # grab number of jokers on the rack
+    numJokers = rack.count("?")
+
+    #print(f"Converting {word} into available play(s)...")
+    # iterate through the already-placed letters on the board
+    for position in fixedPositions:
+
+        startPos = 0
+        
+        letter = getLetterFromPosition(position)
+
+        # check for an occurence of a fixed position-letter in the word
+       
+        fixedLetterInWord = list(substring_indexes(letter,word))
+
+        #before:
+        # if positionInString is not -1:
+
+        if len(fixedLetterInWord) is not 0:
+            #print("\n")
+
+            #iterate though every occurence of the fixed position in the given word
+            for index in fixedLetterInWord:       
+                
+                check1 = False
+                check2 = False
+                check3 = False
+                check4 = False
+                check5 = False
+
+                usedRackLetters = []
+                # reset temporary board before starting the Checks.
+                #print(f"Number of TemporaryPositions: {len(temporaryPositions)}")
+                removeTemporaryLetters() 
+
+                # the starting position is (FixedPosition minus index of FixedPosition) in word       
+
+
+
+                # Check 1: The coordinates must be A-O, and 0-15 for a starting postion     
+                #convert position to coordinate to do the math
+                x,y = positionToCoord(position)
+                # Horizontal
+                if horizontalOrVertical[0] == "H":  
+                    startPos = coordToPosition(x - index, y)
+                    endPos = modifyPosition(startPos, len(word)-1, 0, horizontalOrVertical)
+                    ##print("Ending Position:",endPos)
+                # Vertical 
+                if horizontalOrVertical[0] == "V":  
+                    startPos = coordToPosition(x, y - index)
+                    endPos = modifyPosition(startPos, 0, len(word)-1, horizontalOrVertical)
+                    ##print("Ending Position:",endPos)
+                # coordToPosition returns None if it's given invalid coordinates.
+                ##print(f"Starting Position for {word}: {startPos}")
+            
+                if startPos is not None and endPos is not None:
+                    #print("Check 1 (Positions) passed.")
+                    check1 = True
+                else:
+                    #print("!!Check 1 (Positions) failed.")
+                    continue
+            
+            
+
+                # Check 2: the letters on the rack must be able to make the play
+                # get a list of positions from Start to End
+                wordRange = getPositionRange(startPos,endPos,horizontalOrVertical)
+
+                #if a fixed Position is in the wordRange, add the letter from that fixed position to additionalLetters
+                additionalLetters = ""
+
+                #reduce the list to only the fixed positions in the wordRange
+                fixedPositionsInRange = list(set(wordRange).intersection(fixedPositions))
+
+                # iterate through the fixed positions, join a string for the additional Letters for every fixed position
+                for counterPosition in fixedPositionsInRange:
+                    additionalLetters += "".join(getLetterFromPosition(counterPosition, lettersOnly = True))
+                ##print("Additional Letters:", additionalLetters)
+
+                # check if the letters on the rack and the additional fixed positions can build the word.
+                if lettersCanBuildWord(word, "".join(rack) + additionalLetters) == True: 
+                    #print("Check 2 (buildable from rack) passed.")
+                    check2 = True
+                else:
+                    #print("!!Check 2 (buildable from rack) failed")
+                    continue
+
+                
+
+                # Check 3: the letters from starting position to ending position must actually spell the word.
+                # Place Letters into temporary Board
+                setWordOnBoard(word, startPos, horizontalOrVertical, temporary = True)
+
+                # Check if the letters from StartingPosition to ending Position are equal to the word
+                checkWord = getWordFromPositions(startPos, endPos, horizontalOrVertical, temporary = True)
+                ##print("CheckWord:", checkWord)
+                if word == checkWord:
+                    #print("Check 3 (word placed equals word searched) passed.")
+                    check3 = True
+                else:
+                    #print("!!Check 3 (word placed equals word searched) failed.")
+                    continue
+
+
+
+                # Check 4: before and after the word is an empty space (ie the word doesn't actually collide with other words)
+                # exception: the starting position is A or 0, or the ending position is O or 15 (in which case getLetterFromPosition returns None)
+                if horizontalOrVertical[0] == "H":
+                    squareBefore = getLetterFromPosition(modifyPosition(startPos, -1, 0, horizontalOrVertical), lettersOnly = True, temporary = False)
+                    squareAfter = getLetterFromPosition(modifyPosition(endPos, +1, 0, horizontalOrVertical), lettersOnly = True, temporary = False)
+                if horizontalOrVertical[0] == "V": 
+                    squareBefore = getLetterFromPosition(modifyPosition(startPos, 0, -1, horizontalOrVertical), lettersOnly = True, temporary = False)
+                    squareAfter = getLetterFromPosition(modifyPosition(endPos, 0, +1, horizontalOrVertical), lettersOnly = True, temporary = False)
+
+                # if 
+                # squareBefore is outside of the board (StartPos is either Column A or Row 1)...
+                if squareBefore is None:
+                    # ...only the square after the word needs to be empty.
+                    if squareAfter == "0":
+                        #print("Check 4 (Square before/after is empty) passed.")
+                        check4 = True
+                    else:
+                        #print("!!Check 4 (Square before/after is empty) failed.")
+                        continue
+                # if squareAfter is outside of the board (EndPos is either Column O or Row 15)...
+                elif squareAfter is None:
+                    # ...only the square before the word needs to be empty.
+                    if squareBefore == "0":
+                        #print("Check 4 (Square before/after is empty) passed.")
+                        check4 = True
+                    else:
+                        #print("!!Check 4 (Square before/after is empty) failed.")
+                        continue
+                else:
+                    #if the square before and after are inside the board (read: valid positions), then they must both be empty.
+                    if squareAfter == "0" and squareBefore == "0":
+                        #print("Check 4 (Square before/after is empty) passed.")
+                        check4 = True
+                    else:
+                        #print("!!Check 4 (Square before/after is empty) failed.")
+                        continue
+
+
+
+                
+                # Check 5: at least one letter from the rack must be used.
+                usedRackLetters = countRackLettersUsed(word, additionalLetters)
+                if len(usedRackLetters) > 0:
+                    check5 = True
+                    #print("Check 5 (>=1 Rack-Letter used) passed.")
+                else:
+                    #print("Check 5 (>=1 Rack-Letter used) failed.")
+                    continue
+
+                # figure out which letter(s) of the word is/are used by the joker(s) - modify the word before adding it to available plays.
+                # TODO: rework to store the letters as-is with jokers - "ROSE" --> RO?SE
+                if numJokers > 0:   
+                    word = convertWordToJoker(word,"".join(rack) + additionalLetters)
+
+                # if all checks are True, append the (unique) play to the list functionPlays
+                if check1 is True and check2 is True and check3 is True and check4 is True and check5 is True:
+                    #if [word, startPos, horizontalOrVertical] not in functionPlays:
+                    #    functionPlays.append([word, startPos, horizontalOrVertical])
+                    if [word, startPos, endPos, horizontalOrVertical, usedRackLetters] not in availablePlays:
+                        availablePlays.append([word, startPos, endPos, horizontalOrVertical, usedRackLetters])
+            #END OF for index in fixedLetterInWord:
+        #END OF if len(fixedLetterInWord) is not 0:
+    # END OF for position in fixedPositions:
+
+
+
+
+
+#TODO
+def checkPlay():
+    pass
+    # check if the available play neighbors another word or extends an existing word - if the word exists, the play is OK and that neighboring word is scored as well.
+    # if the neighboring word doesn't exist, the play is not possible.
+
+
+
 
 
 # ***Playing the game***
 # draw 7 letters from the letterBag and place them on the rack one by one, removing the letter from the letterBag (letterBag.pop(index))
 # shuffle the letterBag each time a letter is drawn
 def drawLettersFromBag():
+    global rack
     for i in range(len(rack),7):
         if len(letterBag) > 0:
             rack.append(letterBag.pop(random.randint(0,(len(letterBag)-1))))
@@ -1007,114 +1112,338 @@ def drawLettersFromBag():
 
 
 
-
 # ***DISPLAY THE ENTIRE THING***
-# one square:
-# +   +
-#  [Q] 
-# +   +
-
-# display-mockup, "HA" is already on the board:  E R N S T [H A] F T (score)
-# or, only using H: [H] E L D (score)
-# turn after:  [H E L D] E N T U M (score)
-
 
 def printBoard():
-    
-
+    global gameTurn
     #simple table to display the board
-    print(" A \t B \t C \t D \t E \t F \t G \t H \t I \t J \t K \t L \t M \t N \t O \n")
-    for row in range(len(lettersOnBoard)):
+    # one square:
+    #      A
+    #    +---+
+    #  1   Q 
+    #    +---+
+    print("\t A \t B \t C \t D \t E \t F \t G \t H \t I \t J \t K \t L \t M \t N \t O\n")
+    #print("  1\t 2 \t 3 \t 4 \t 5 \t 6 \t 7 \t 8 \t 9 \t 10\t 11\t 12\t 13\t 14\t 15 \n")
+    for row in range(sizeV):
+        print("\t", end="")
         print("+---"*15)
-        for column in range(len(lettersOnBoard[0])):
-            print(" " + getLetterFromPosition(y = row, x = column) + "\t", end = "")
-            #print("   " + getLetterFromPosition(y = row, x = column) + "   ", end = "")
-        print("   " + str(row+1))
+        print(str(row+1)+"  ", end="")
+        for column in range(sizeH):
+            #print(" " + getLetterFromPosition(y = row, x = column) + "\t", end = "")
+            print(" " + getLetterFromPosition(y = row, x = column, displayJokers = True) + "\t", end = "")
+        print("  " + str(row+1))
+        #print("   " + chr(row+65))
+    print("\t", end="")
+    print("+---"*15)
+    print("\n")
+    print("\t A \t B \t C \t D \t E \t F \t G \t H \t I \t J \t K \t L \t M \t N \t O \n")
     
-    print("\n\n")
+    # display current score:
+    print("Score:\t", gameScore)
+    print("Turn #:\t", gameTurn)
+    print("Letters in Bag:\t", len(letterBag))
+    print("\n")
+
     # display the letters on the rack
-    print("Rack:  ", end = "")
+    print("Rack:\t", end = "")
     for letter in rack:
         print(letter, end = "  ")
     # display the score of each letter on the rack
     print("\n")
-    print("    ", end = "")
+    print("\t\t", end = "")
     for letter in rack:
         print(lettersDict.get(letter), end = "  ")
+
+    # display the top-scoring plays:
+    printPlays()
+
+
+
+
+def printPlays():
+    # function to print the 10 best available plays.
+    # Mockup:
+    # 1. 32 +50 - [ERNST]ER - A1->G1
+    # 2. 32 - [HAUS]IER(E)N - C2->C10
+    pass
+
+
+def executePlay(play):
+    # guard clause: play-list is missing one of the following:
+    # score, word, starting position, ending position, orientation, list of used rack-letters
+    if len(play) < 6:
+        print("Entered play is incorrect")
+        print(play)
+        return
+    
+    global rack, lettersOnBoard, gameScore
+
+    # unwrap the variables for readability:
+    playExpectedScore = play[0]
+    playWord = play[1]
+    playStartPos = play[2]
+    playEndPos = play[3]
+    playOrientation = play[4]
+    playRackLetters = play[5]
+
+    # compare actual score to expected score, add to gameScore
+    playActualScore = scoreWord(playWord, playStartPos, playOrientation)
+    if playExpectedScore == playActualScore:
+        gameScore += playExpectedScore
+    else:
+        print(f"Expected Play score ({playExpectedScore}) and actual Play score ({playActualScore}) are different. Using actual play score...")
+        gameScore += playActualScore
+        #gameScore += playExpectedScore
+
+    # set the word on the actual board.
+    setWordOnBoard(playWord, playStartPos, playOrientation, temporary = False)
+
+    # iterate over the entries in playRackLetters, remove matching letters from the rack.
+    for letter in playRackLetters:
+        # handle the joker in the used play
+        if len(letter) == 2: letter = letter[0]
+        # remove the letter from the rack
+        rack.remove(letter)
+    
+    
+# functions for checking buildable words into available Plays
 
 
 
 
 # ***Log the plays.###
+# see: https://de.wikipedia.org/wiki/Scrabble#Notation
+
+def firstTurn():
+    global rack, buildableWords, availablePlays
+    # returns List of buildable words only using the rack.
+    # TODO: make sure rack-letters are only used once - "STROHS" shouldn't be possible.
+
+    #startPosition = "H8"
+    numJokers = rack.count("?")
+
+    for i in range(0,len(rack)):
+        
+        #tempLetter = rack.pop(i)
+        tempLetter = rack[i]
+        #print("Temp.Letter:", tempLetter)
+        #setLetterToPosition(tempLetter,"H8",temporary = True)
+        #setLetterToPosition(tempLetter,"H8", temporary = False)
+        if tempLetter == "?":
+            #rack.insert(i-1,tempLetter)
+            continue
+
+        #fixedPositions = ["H8"]
+        fixedPositions = ["H8"]
+        
+        HorV = ["H", "V"]
+
+        for orientation in HorV:
+            buildableWords = searchWords("H8", fixedPositions, orientation)
+            #len(buildableWords)
+            for entry in buildableWords:
+                #print(entry)
+                removeTemporaryLetters()
+                # center the entry over square H8
+                index = len(entry)//2
+                
+                # Check 1: The coordinates must be A-O, and 0-15 for a starting postion     
+                #convert position to coordinate to do the math
+                x,y = positionToCoord("H8")
+                # Horizontal
+                if orientation[0] == "H":  
+                    startPos = coordToPosition(x - index, y)
+                    endPos = modifyPosition(startPos, len(entry)-1, 0, orientation)
+                    ##print("Ending Position:",endPos)
+                # Vertical 
+                if orientation[0] == "V":  
+                    startPos = coordToPosition(x, y - index)
+                    endPos = modifyPosition(startPos, 0, len(entry)-1, orientation)
+                    ##print("Ending Position:",endPos)
+                # coordToPosition returns None if it's given invalid coordinates.
+                ##print(f"Starting Position for {entry}: {startPos}")
+            
+                if startPos is not None and endPos is not None:
+                    #print("FIRST TURN Check 1 (Positions) passed.")
+                    check1 = True
+                else:
+                    #print("FIRST TURN !!Check 1 (Positions) failed.")
+                    continue
+            
+            
+
+                # Check 2: the letters on the rack must be able to make the play
+                # get a list of positions from Start to End
+                #wordRange = getPositionRange(startPos,endPos,horizontalOrVertical)
+
+                ##if a fixed Position is in the wordRange, add the letter from that fixed position to additionalLetters
+                #additionalLetters = ""
+
+                ##reduce the list to only the fixed positions in the wordRange
+                #fixedPositionsInRange = list(set(wordRange).intersection(fixedPositions))
+
+                ## iterate through the fixed positions, join a string for the additional Letters for every fixed position
+                #for counterPosition in fixedPositionsInRange:
+                #    additionalLetters += "".join(getLetterFromPosition(counterPosition, lettersOnly = True))
+                ###print("Additional Letters:", additionalLetters)
+
+                # check if the letters on the rack and the additional fixed positions can build the entry.
+                if lettersCanBuildWord(entry, "".join(rack)) == True: 
+                    #print("Check 2 (buildable from rack) passed.")
+                    check2 = True
+                else:
+                    #print("!!Check 2 (buildable from rack) failed")
+                    continue
+
+                
+
+                # Check 3: the letters from starting position to ending position must actually spell the entry.
+                # Place Letters into temporary Board
+                setWordOnBoard(entry, startPos, orientation, temporary = True)
+
+                # Check if the letters from StartingPosition to ending Position are equal to the entry
+                checkWord = getWordFromPositions(startPos, endPos, orientation, temporary = True)
+                ##print("CheckWord:", checkWord)
+                if entry == checkWord:
+                    #print("FIRST TURN Check 3 (entry placed equals entry searched) passed.")
+                    check3 = True
+                else:
+                    #print("FIRST TURN !!Check 3 (entry placed equals entry searched) failed.")
+                    continue
+               
+                # Check 5: at least one letter from the rack must be used.
+                usedRackLetters = countRackLettersUsed(entry, "")
+                if len(usedRackLetters) > 0:
+                    check5 = True
+                    #print("FIRST TURN Check 5 (>=1 Rack-Letter used) passed.")
+                else:
+                    #print("FIRST TURN Check 5 (>=1 Rack-Letter used) failed.")
+                    continue
+
+                # figure out which letter(s) of the entry is/are used by the joker(s) - modify the entry before adding it to available plays.
+                # TODO: rework to store the letters as-is with jokers - "ROSE" --> RO?SE
+                if numJokers > 0:   
+                    entry = convertWordToJoker(entry,"".join(rack))
+
+                # if all checks are True, append the (unique) play to the list functionPlays
+                if check1 is True and check2 is True and check3 is True and check5 is True:
+                    #if [entry, startPos, horizontalOrVertical] not in functionPlays:
+                    #    functionPlays.append([entry, startPos, horizontalOrVertical])
+                    if [entry, startPos, endPos, orientation, usedRackLetters] not in availablePlays:
+                        availablePlays.append([entry, startPos, endPos, orientation, usedRackLetters])
+       
+        # plop the letter back into place
+        #rack.insert(i-1,tempLetter)
+        # remove the temporary letter from the actual board
+        #setLetterToPosition('0',"H8", temporary = False)
+        #lettersOnBoard[7][7] = '0'
+
+        #dirty hack: Sanity-Check availablePlays
+        #pprint.pprint(availablePlays)
+
+
+
+    #pprint.pprint(buildableWords)
+    #pprint.pprint(availablePlays)
+
+
+
+
 
 # MAIN PROGRAM
 def mainProgram():
-    global fixedPositions, buildableWords, lettersRow, scoredPlays
+    global rack, fixedPositions, buildableWords, scoredPlays, gameScore, gameTurn
     
     #COMMANDS BEFORE THE GAME
     running = True
-    score = 0
+    
+    # variable to cull plays that don't use all rack-letters, should one such play be possible.
+    fullRackBonus = False
+
     # fill the rack with letters from the bag
     drawLettersFromBag()
     HorV = ["H", "V"]
 
 
     while running:
-        #Turn occurs by selecting one of the displayed possible plays
+        # a Turn is made by selecting one of the displayed possible plays
         
         # MESSAGE
-        printBoard()
-        print("\n")
-        print("\n")
+        #printBoard()
+        #print("\n")
+        #print("\n")
         
+        # sync the temporary board with the actual board.
         temporaryBoard = copy.deepcopy(lettersOnBoard)
         
         # THINKING
 
-        for orientation in HorV:
-            print(orientation)
-            # go over each row (A1-A15), horizontal
-            for i in range(0,15):
-                if orientation == "H":
-                    loopPosition = coordToPosition(0,i)
-                else:
-                    loopPosition = coordToPosition(i,0)
+        # TODO: Check if a Rack-Letter can be used to pick up a Joker
 
-                # get the fixed positions of that row
-                fixedPositions = getFixedPositions(loopPosition,orientation)
-                lettersRow = getLettersRow(loopPosition,orientation)
 
-                # get the words buildable from the rack with the fixed letters
-                buildableWords = searchWords(loopPosition, lettersRow, orientation)
-                #pprint.pprint(buildableWords)
+        # TODO: Handling for Turn 1 (no fixed positions on the board)
+        # Turn 1:
+        # create a list of available Plays, without fixed positions on the board
+        # mock a fixed position by placing one of the rackLetters onto the center,
+        if gameTurn == 1:
+            firstTurn()
+        else:
+            for orientation in HorV:
+                #print(orientation)
+                # iterate over the number of rows/columns
+                for i in range(0,15):
+                    if orientation == "H":
+                        loopPosition = coordToPosition(0,i)
+                    # vertical
+                    else:
+                        loopPosition = coordToPosition(i,0)
+
+                    # get the fixed positions of that row
+                    fixedPositions = getFixedPositions(loopPosition,orientation)
+                    #lettersRow = getLettersRow(loopPosition,orientation)
+                    # get the words buildable from the rack with the fixed letters
+                    buildableWords = searchWords(loopPosition, fixedPositions, orientation)
+                    #pprint.pprint(buildableWords)
                 
-                # convert them to plays
-                for entry in buildableWords:
-                    #availablePlays
-                    
-                    convertWordToPlay(entry, fixedPositions, orientation)
-                
-                # score the plays
-
+                    # convert them to plays
+                    for entry in buildableWords:
+                        convertWordToPlay(entry, fixedPositions, orientation)
+                    #buildableWords.clear()
+        # end of if gameTurn
             
-            # select the 10 highest-scoring plays, add those to Moves (name pending)
-
-            # reset the buildableWords and fixedPositions
-            #pprint.pprint(buildableWords)
-            pprint.pprint(availablePlays)
-
+                
+        # score the plays
+        # reset the buildableWords and fixedPositions
+        #pprint.pprint(buildableWords)
+        #pprint.pprint(availablePlays)
+        topScore = 0
+        topPlay = []
 
         for play in availablePlays:
-            a,b,c = play[0], play[1], play[2]
-            d = scoreWord(a,b,c)
+            # guard clause: if all Rack-letters were found in a play, discard the other plays unless they still score higher
 
-            #if len(scoredPlays) <= 10:
-                #scoredPlays.append([a,b,c,d])
-            #else:
-                #continue
-            scoredPlays.append([a,b,c,d])
+            #if fullRackBonus is True and len(play[4]) < 7: continue
+            
+            playWord = play[0]
+            playStartPosition = play[1]
+            playEndPosition = play[2]
+            playOrientation = play[3]
+            playRackLetters = play[4]
+            playScore = int(scoreWord(playWord,playStartPosition,playOrientation))
+            
+            # if all letters are used, add 50 to the playScore
+            if len(playRackLetters) == 7:
+                playScore += 50
+                fullRackBonus = True
+            
+            # keep the top-scoring play stored.
+            if playScore > topScore:
+                topScore = playScore
+                topPlay = [playScore, playWord, playStartPosition, playEndPosition, playOrientation, playRackLetters]
 
-        running = False
+            # only add unique scored plays to the list
+            if scoredPlays.count([playScore, playWord, playStartPosition, playEndPosition, playOrientation, playRackLetters]) == 0:
+                scoredPlays.append([playScore, playWord, playStartPosition, playEndPosition, playOrientation, playRackLetters])
         
         print("\n")
         printBoard()
@@ -1122,22 +1451,62 @@ def mainProgram():
 
         #pprint.pprint(availablePlays)
         print("\n")
-        pprint.pprint(scoredPlays)
+        print("Top-Scoring Play:", topPlay)
+        print("\n")
+        #print("Other plays:")
+        #pprint.pprint(list(reversed(sorted(scoredPlays)))[1:10])
+        if len(topPlay) == 6:
+            executePlay(topPlay)
+            print("Executing Top-Scoring Play...")
+        topPlay = []
+       
+        # stop executing when no plays can be made, there's no letters in the bag and the rack is empty
+        if (len(letterBag) == 0 and len(rack) == 0) or len(availablePlays) == 0:
+            running = False        
+            print("All done, press Enter...")
+            input(">")
+
 
         #buildableWords.clear()
         #availablePlays.clear()
         #scoredPlays.clear()
-        pprint.pprint(buildableWords)
+        #pprint.pprint(buildableWords)
+        #pprint.pprint(availablePlays)
 
-        pprint.pprint(availablePlays)
-
-        input("All done, press Enter...")
+        # End of Turn:
         
+        # #re-fill the rack
+        drawLettersFromBag()
+
+        # reset the lists:
+        buildableWords.clear()
+        availablePlays.clear()
+        scoredPlays.clear()
+        removeTemporaryLetters()
+
+        # update the temporaryBoard:
+        temporaryBoard = copy.deepcopy(lettersOnBoard)
+        
+        printBoard()
+        print(f"\nEnd of turn {gameTurn}.\n")
+        
+        #DEBUG
+        #userinput = input("Press Enter...")
+        #userinput = "a"
+        #if userinput != "":
+        #    break
+        #else:
+        #    gameTurn += 1
+        gameTurn += 1
+# end of function mainProgram()
+
+
+
+
 
 # COMMANDS
 # check if the shelve-file already exists
-#DictionaryShelve = d = shelve.open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\dictionary.shelve", writeback = True)
-DictionaryShelve = d = shelve.open(r"E:\Projekte\0Player-Scrabble\dictionary.shelve", writeback = True)
+DictionaryShelve = d = shelve.open(r"D:\Projekte\Scrabble Solver\0Player-Scrabble\dictionary.shelve", writeback = True)
 #d.close()
 #wordListCombined = d.get("wordListCombined")
 if d.get("wordListCombined") is None: 
@@ -1147,28 +1516,20 @@ else:
     #print(wordListCombined[0][0])
     d.close()
 
+
+#DEBUG
+#setWordOnBoard("ERNST", "F8", "H", temporary = False)
+
 temporaryBoard = copy.deepcopy(lettersOnBoard)
-
-setWordOnBoard("ERNST", "E8", "H")
-setWordOnBoard("AUFPASSEN", "E1", "V")
-
-#setWordOnBoard("BANANENHAUS", "A1", "H")
-#setWordOnBoard("FRANKENFENSTERN", "A15", "H")
-
-#temporaryBoard = copy.deepcopy(lettersOnBoard)
 
 #rack.append(list("?SBMNMF"))
 #rack = list("?SBMNMF")
 
-
 #mainProgram()
 drawLettersFromBag()
-printBoard()
+#rack = list("STERNOH")
+#printBoard()
 
-input("PRESS ENTER")
+#input("PRESS ENTER")
 
-#mainProgram()
-
-print(getFromPosition("A0"))
-print(getFromPosition("Y23"))
-print(getFromPosition("F4"))
+mainProgram()
