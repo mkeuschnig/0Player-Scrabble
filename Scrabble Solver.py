@@ -9,7 +9,7 @@
 # TODO: Culling of available plays - if a play using all rack-letters can be found, discard the others that dont use all of the rack
 # TODO: Rework getting/setting letters/words into the normal and temporary boards
 # TODO: create function for logging - move away from print-statements
-# also: general cleanup: split source into different files
+# also: general cleanup: split source into different f iles
 # TODO: implement checkPlay() to cull plays that touch words and result in illegal words.
 # TODO: extract Check 1-5 from convertPlays - inlining hurts the DRY.
 
@@ -330,7 +330,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
 # if vertical, check along lettersOnBoard[x][number]: 
 
     startX,startY = positionToCoord(positionStart)
-    numChecked = 0
+    #numChecked = 0
     if positionEnd is None and horizontalOrVertical is None:
         if lettersOnBoard[startY][startX] == "0":
             return True
@@ -341,7 +341,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
         if horizontalOrVertical[0].upper() == "H":
             endY = startY
             for i in range(startX, endX+1):
-                numChecked += 1
+                #numChecked += 1
                 if lettersOnBoard[startY][i] is not "0":
                     #print(f"Square {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)} not empty. ")
                     #print(f"Square {coordToPosition(i,startY)} taken up by: {lettersOnBoard[startY][i]}")
@@ -351,7 +351,7 @@ def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = No
         if horizontalOrVertical[0].upper() == "V":
             endX = startX
             for i in range(startY, endY+1):
-                numChecked += 1
+                #numChecked += 1
                 if lettersOnBoard[i][startX] is not "0":
                     #print(f"Square {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)} not empty. ")
                     #print(f"Square {coordToPosition(i,startY)} taken up by: {lettersOnBoard[i][startX]}")
@@ -757,6 +757,10 @@ def lettersCanBuildWord(wordToCheck, lettersGiven):
         else:
             continue
     return True
+
+def countRackLettersUsed(wordToCheck, lettersNotOnRack):
+    # returns a list of the rack-letters used in a play.
+    # the word can already be built with the rack-letters (since availablePlays calls lettersCanBuildWord).
 
 def countRackLettersUsed(wordToCheck, lettersNotOnRack):
     # returns a list of the rack-letters used in a play.
@@ -1212,7 +1216,6 @@ def executePlay(play):
 
 
 # ***Log the plays.###
-# see: https://de.wikipedia.org/wiki/Scrabble#Notation
 
 def firstTurn():
     global rack, buildableWords, availablePlays
@@ -1580,5 +1583,6 @@ drawLettersFromBag()
 
 #Rack:	
 
-		
-#End of turn 23.
+#input("PRESS ENTER")
+
+mainProgram()
