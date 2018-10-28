@@ -4,14 +4,14 @@
 # TODO: Helper-function for checking validity of given Position/Coord
 
 # TODO: make proper Path
-import sys
-sys.path.insert(0, 'E:/Projekte/0Player-Scrabble/')
+#import sys
+#sys.path.insert(0, 'E:/Projekte/0Player-Scrabble/')
 
 import settings as S
 import checks as C
 
 
-def findIndexesOfLetterInWord(letterToFind, wordToSearch):
+def findIndexesOfLetterInWord(letterToFind:str, wordToSearch:str) -> list:
     # search_substring_indices from StackExchange
     #https://codereview.stackexchange.com/questions/146834/function-to-find-all-occurrences-of-substring
     """ 
@@ -24,18 +24,19 @@ def findIndexesOfLetterInWord(letterToFind, wordToSearch):
     last_found = -1  # Begin at -1 so the next position to search from is 0
     while True:
         # Find next index of substring, by starting after its last known position
-        last_found = word.find(letter, last_found + 1)
+        last_found = wordToSearch.find(letterToFind, last_found + 1)
         if last_found == -1:  
             break  # All occurrences have been found
         yield last_found
 
 
-def convertCoordinateToPosition(x: int, y: int) -> str:
+def convertCoordinateToPosition(x:int, y:int) -> str:
     """
     Convert the x/y-value of 0-14 to Letters A to O, returns a single String.
     Returns None if the given x/y-value is invalid.
-    0,0 --> "A1"
-    14,14 --> "O15"
+    convertCoordinateToPosition(0, 0)    -> "A1"
+    convertCoordinateToPosition(14, 14)  -> "O15"
+    convertCoordinateToPosition(26, 65)  -> None
     """
     # invalid coordinate on the board.
     # TODO - handle sizeVertical and sizeHorizontal with globals
@@ -49,220 +50,118 @@ def convertCoordinateToPosition(x: int, y: int) -> str:
     return str(resultX+resultY)
 
 
-
-def convertPositionToCoordinate(positionString):
+def convertPositionToCoordinate(positionString:str) -> tuple:
     # TODO - handle sizeVertical and sizeHorizontal with globals
     """
     Convert the given Position-String of a square back to x,y-coordinates.
     Returns None if the Position is invalid.
-    "A1" --> 0,0
-    "O15" --> 14,14
+    convertPositionToCoordinate("A1") -> 0,0
+    convertPositionToCoordinate("O15") -> 14,14
+    convertPositionToCoordinate("Z65") -> None, None
     """
     # ord("A") = 65
-    resultX = int(ord(positionString[0])-65)
-    resultY = int(positionString[1:])-1
-
-    if C.checkIsCoordinateValid(resultX,resultY) is True:
-        return resultX, resultY
+    x = int(ord(positionString[0])-65)
+    y = int(positionString[1:])-1
+    if C.checkIsCoordinateValid(x, y) is False:
+        return None, None
     else:
-        return None
+        return x, y
     
 
-
-
-def convertPositionsToList(startPosition, endPosition, horizontalOrVertical):
-    # TODO: Add handling for omitting horizontalOrVertical (positions can only be on one axis anyway)
+def getModifiedPosition(position:str, modByX=0, modByY=0) -> str:
     """
-    Returns a list of Positions between startPosition and endPosition (inclusive).
-    "A1", "A5" --> ["A1", "A2", "A3", "A4", "A5"]
+    Takes a position-string, Returns a position-string with the X/Y value changed.
+    getModifiedPosition("H8", -7, -7) -> "A1" 
     """
-    resultList = []
-    # convert positions to coordinates
-    startX, startY = positionToCoord(startPosition)
-    endX, endY = positionToCoord(endPosition)
-
-    if horizontalOrVertical.upper() == "H":
-        for currentX in range(startX, endX+1): #+1 so the ending coordinate is included
-            resultList.append(coordToPosition(currentX,startY))
-
-    elif horizontalOrVertical.upper() == "V":
-        for currentY in range(startY, endY+1): #+1 so the ending coordinate is included
-            resultList.append(coordToPosition(startX,currentY))
-    else: 
-        print("horizonalOrVertical in getFixedPositions not given or wrong.")
-        return
-
-    return resultList
-
-
-
-def getFilledPositions(position, horizontalOrVertical = "0"):
-    # TODO: don't modify a global in a minor function.
-    # iterate through the board, return a list of positions with already-placed letters
-    #global fixedPositions
-    #fixedPositions = []
-    x,y = positionToCoord(position)
-
-    # iterate the row square by square, return the already-placed letters on the board in a list
-
-    if horizontalOrVertical.upper() == "H":
-        for counter in range(0, sizeH):
-            #lettersRow += "".join(lettersOnBoard[y][counter])
-            if lettersOnBoard[y][counter] is not "0": fixedPositions.append(coordToPosition(counter,y))
-
-    elif horizontalOrVertical.upper() == "V":
-        for counter in range(0, sizeV):
-            #lettersRow += "".join(lettersOnBoard[counter][x])
-            if lettersOnBoard[counter][x] is not "0": fixedPositions.append(coordToPosition(x,counter))
-
-    else: 
-        print("horizonalOrVertical in getFixedPositions not given or wrong.")
-
-    return fixedPositions
-
-# contains the logic to search Words and convert Words to plays
-
-
-
-# search_substring_indices from StackExchange
-#https://codereview.stackexchange.com/questions/146834/function-to-find-all-occurrences-of-substring
-def substring_indexes(letter, word):
-    #
-    #substring_indexes(substring, string):
-    """ 
-    Generate indices of where substring begins in string
-
-    >>> list(find_substring('me', "The cat says meow, meow"))
-    [13, 19]
-    """
-    last_found = -1  # Begin at -1 so the next position to search from is 0
-    while True:
-        # Find next index of substring, by starting after its last known position
-        last_found = word.find(letter, last_found + 1)
-        if last_found == -1:  
-            break  # All occurrences have been found
-        yield last_found
-
-
-# create the X/Y-Coordinate-system on the board:
-# Official Notation is A-O on the Y-axis, 1-15 on the X-axis
-# X = 0 and Y = 0 returns the top-left field.
-# convert x,y-values to Scrabble-Notation
-def coordToPosition(x,y):
-    #
-    # convert the x-value of 0-14 to Letters A to O, returns a single String
-    # chr(65) = "A"
-    resultX = chr(x+65)
-    resultY = str(y+1)
-    if x > 14 or y > 14 or x < 0 or y < 0:
-        #print(f"Invalid coordinate {(x,y)}in coordToPosition")
-        return None # invalid coordinate on the board.
-    return str(resultX+resultY)
-
-
-# Convert Scrabble-Notation to x,y-values
-def positionToCoord(positionString):
-    # returns coordinates x and y from given Scrabble-Notation, input "A1" would return 0,0, 
-    # ord("A") = 65
-    resultX = ord(positionString[0])-65
-    resultY = int(positionString[1::])-1
-    if resultX < 0 or resultY < 0 or resultX > 14 or resultY > 14:
-        #print(f"Invalid position {positionString} in positionToCoord")
-        return None # invalid coordinate on the board.
-    return int(resultX), int(resultY)
-
-
-def getFromPosition(startPosition, endPosition = None, horizontalOrVertical = "0", mode = None, temporary = False):
-    # collective function to access things on the (temporary or actual) board
-    
-    # modes: 
-    # "letter" - gets letter(s) from position, returns string
-    # "modifier" - returns integer for word and letter-modifiers
-    # "empty" - returns True if the given position(s) are empty, False otherwise.
-    # "fixed" - returns a list of positions with letters already on them
-    # "range" - returns list of positions: "A1, A5": ["A1", "A2", "A3", "A4", "A5"]
-
-    # temporary:
-    # True - temporary board gets asked instead of the actual board.
-    # temporaryBoard resets itself each time something is set to it.
-    # temporaryBoard gets updated after each play and is otherwise identical to lettersOnBoard.
-    pass
-
-def setToPosition(startPosition, endPosition = None, horizontalOrVertical = "0", mode = None, temporary = False):
-    # collective function to write things into the board (temporary or actual)
-
-    #
-    
-    pass
-
-
-def modifyPosition(position, modX = 0, modY = 0, horizontalOrVertical = "0"):
-    # returns a position-string with the X/Y value changed.
+    # 
     if position is None: return None # return invalid position
 
-    x,y = positionToCoord(position)
+    x, y = convertPositionToCoordinate(position)
  
-    if horizontalOrVertical[0].upper() == "H":
-        # horizontal: Y-modified value is ignored
-        return coordToPosition(x+modX,y)
-
-    elif horizontalOrVertical[0].upper() == "V":
-        # vertical: X-modified value is ignored
-        return coordToPosition(x,y+modY)
-
+    if C.checkIsCoordinateValid(x + modByX, y + modByY) is True:
+        return convertCoordinateToPosition(x + modByX, y + modByY)
     else:
-        return coordToPosition(x+modX,y+modY)
+        return None
 
 
-def getPositionRange(startPosition, endPosition, horizontalOrVertical):
-    # returns a list of positions betweeen startPosition and endPosition
+def convertPositionsToList(startPosition:str, endPosition:str=None) -> list:
+    """
+    Returns a list of Positions between startPosition and endPosition (inclusive).
+    convertPositionsToList("A1", "A5") -> ["A1", "A2", "A3", "A4", "A5"]
+    """
+    
     resultList = []
-    # convert positions to coordinates
-    startX, startY = positionToCoord(startPosition)
-    endX, endY = positionToCoord(endPosition)
 
-    if horizontalOrVertical.upper() == "H":
-        # count from starting coordinate to ending coordinage along the X-Axis
-        for counter in range(startX, endX+1): #+1 so the ending coordinate is included
-            #lettersRow += "".join(lettersOnBoard[y][counter])
-            resultList.append(coordToPosition(counter,startY))
+    startX, startY = convertPositionToCoordinate(startPosition)
+    
+    if endPosition is None:
+        return [startPosition]
+    else:
+        endX, endY = convertPositionToCoordinate(endPosition)
 
-    elif horizontalOrVertical.upper() == "V":
-        # count from starting coordinate to ending coordinage along the Y-Axis
-        for counter in range(startY, endY+1):
-            #lettersRow += "".join(lettersOnBoard[counter][x])
-            resultList.append(coordToPosition(startX,counter))
-    else: 
-        print("horizonalOrVertical in getFixedPositions not given or wrong.")
-        return
+    if startPosition[0] == endPosition[0]: # Vertical orientation
+        for currentY in range(startY, endY+1): # +1 so the ending coordinate is included
+            resultList.append(convertCoordinateToPosition(startX,currentY))
+    elif startPosition[1:] == endPosition[1:]: # Horizontal orientation
+        for currentX in range(startX, endX+1): 
+            resultList.append(convertCoordinateToPosition(currentX,startY))
+    else:
+        print(f"Error: convertPositionsToList: \t {startPosition} and {endPosition} are not on the same X or Y-Axis.")
+        return []
 
     return resultList
 
 
-def getFixedPositions(position, horizontalOrVertical = "0"):
+def getLetterFromPosition(position, temporaryBoard=False): 
+    """
+    Returns a Letter from a given position (optionally from the temporary board).
+    """
+    if temporaryBoard is True:
+        functionBoard = S.BOARD_TEMPORARY
+    else:
+        functionBoard = S.BOARD_ACTUAL
+
+    x, y = convertPositionToCoordinate(position)
+
+    if x is None or y is None: 
+        return None
+    else:
+        return functionBoard[y][x]
+
+
+
+def setLetterToPosition(position, letterToPlace, temporaryBoard=False):
+    # collective function to write things into the board (temporary or actual)
+    if temporaryBoard is True:
+        functionBoard = S.BOARD_TEMPORARY
+
+    else:
+        functionBoard = S.BOARD_ACTUAL
+
+    x, y = convertPositionToCoordinate(position)
+
+    if C.checkIsPositionEmpty(position) is True:
+        functionBoard[y][x] = letterToPlace
+    else:
+        print(f"setLetterToPosition: position {position} is not empty, taken up by {functionBoard[y][x]}")
+
+
+# MERGE: merge from local on desktop (orientation should be clear from startPos and EndPos)
+def getFilledPositions(startPosition:str, endPosition:str=None, temporaryBoard:bool=False, horizontalOrVertical="0"):
     # iterate through the board, return a list of positions with already-placed letters
-    global fixedPositions
-    fixedPositions = []
-    x,y = positionToCoord(position)
+    resultList = []
+    positionsToCheck = convertPositionsToList(startPosition, endPosition)
+ 
+    if temporaryBoard is True:
+        functionBoard = S.BOARD_TEMPORARY
+    else:
+        functionBoard = S.BOARD_ACTUAL
 
-    # iterate the row square by square, return the already-placed letters on the board in a list
+    for currentPosition in positionsToCheck:
+        if C.checkIsPositionEmpty(currentPosition, temporaryBoard) is False:
+            resultList.append(getLetterFromPosition(currentPosition))
 
-    if horizontalOrVertical.upper() == "H":
-        for counter in range(0, sizeH):
-            #lettersRow += "".join(lettersOnBoard[y][counter])
-            if lettersOnBoard[y][counter] is not "0": fixedPositions.append(coordToPosition(counter,y))
-
-    elif horizontalOrVertical.upper() == "V":
-        for counter in range(0, sizeV):
-            #lettersRow += "".join(lettersOnBoard[counter][x])
-            if lettersOnBoard[counter][x] is not "0": fixedPositions.append(coordToPosition(x,counter))
-
-    else: 
-        print("horizonalOrVertical in getFixedPositions not given or wrong.")
-
-    return fixedPositions
-
-
+    return resultList
 
 
 def removeTemporaryLetters():
@@ -285,48 +184,6 @@ def removeTemporaryLetters():
             #pass
             continue
     temporaryPositions.clear()
-
-
-def isPositionEmpty(positionStart, positionEnd = None, horizontalOrVertical = None):
-# function to check if a Square (or line) contains no letters.
-# if horizontal, check along lettersOnBoard[number][x]
-# if vertical, check along lettersOnBoard[x][number]: 
-
-    startX,startY = positionToCoord(positionStart)
-    numChecked = 0
-    if positionEnd is None and horizontalOrVertical is None:
-        if lettersOnBoard[startY][startX] == "0":
-            return True
-        else:
-            return False
-    else:
-        endX, endY = positionToCoord(positionEnd)
-        if horizontalOrVertical[0].upper() == "H":
-            endY = startY
-            for i in range(startX, endX+1):
-                numChecked += 1
-                if lettersOnBoard[startY][i] is not "0":
-                    #print(f"Square {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)} not empty. ")
-                    #print(f"Square {coordToPosition(i,startY)} taken up by: {lettersOnBoard[startY][i]}")
-                    return False
-            #print(f"isPositionEmpty from {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)}. Checked {numChecked} Positions.")
-            return True
-        if horizontalOrVertical[0].upper() == "V":
-            endX = startX
-            for i in range(startY, endY+1):
-                numChecked += 1
-                if lettersOnBoard[i][startX] is not "0":
-                    #print(f"Square {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)} not empty. ")
-                    #print(f"Square {coordToPosition(i,startY)} taken up by: {lettersOnBoard[i][startX]}")
-                    return False
-            #print(f"isPositionEmpty from {coordToPosition(startX,startY)} to {coordToPosition(endX,endY)}. Checked {numChecked} Positions.")
-            return True
-        else:
-            #print("function isPositionEmpty: 'H' or 'V' expected for variable 'horizontalOrVertical'.")
-            #pass
-            return None
-
-
 
 
 def getWordFromPositions(positionStart, positionEnd, horizontalOrVertical = "0", temporary = False):
@@ -427,33 +284,33 @@ def getLetterFromPosition(position = "0", x = None, y = None, lettersOnly = Fals
 # function for placing a single letter into a square
 # if the same letter is already in place, the play is still valid.
 # this makes function setWordonBoard less cumbersome by not having to omit the already-placed letters
-def setLetterToPosition(letter, position = None, x = None, y = None, temporary = False):
-    global lettersOnBoard, temporaryBoard
+#def setLetterToPosition(letter, position = None, x = None, y = None, temporary = False):
+#    global lettersOnBoard, temporaryBoard
 
 
-    if position is not None:
-        x,y = positionToCoord(position)
+#    if position is not None:
+#        x,y = positionToCoord(position)
 
-    position = coordToPosition(x,y)
+#    position = coordToPosition(x,y)
 
-    if temporary is True:
-        # set Letters into the temporary board
-        functionBoard = temporaryBoard
-        temporaryPositions.append(position)
-    else:
-        # set Letters into the normal board
-        functionBoard = lettersOnBoard
+#    if temporary is True:
+#        # set Letters into the temporary board
+#        functionBoard = temporaryBoard
+#        temporaryPositions.append(position)
+#    else:
+#        # set Letters into the normal board
+#        functionBoard = lettersOnBoard
 
 
-    if functionBoard[y][x] == letter:
-        #print(f"Letter {letter} is already on Square {position}")
-        pass
-    elif functionBoard[y][x] == "0":
-        #print(f"Letter {letter} placed on Square {position}")
-        functionBoard[y][x] = letter
-    else:
-        #print(f"Square {position} is not empty: Taken up by {functionBoard[y][x]}. (Temporary: {temporary})")
-        pass
+#    if functionBoard[y][x] == letter:
+#        #print(f"Letter {letter} is already on Square {position}")
+#        pass
+#    elif functionBoard[y][x] == "0":
+#        #print(f"Letter {letter} placed on Square {position}")
+#        functionBoard[y][x] = letter
+#    else:
+#        #print(f"Square {position} is not empty: Taken up by {functionBoard[y][x]}. (Temporary: {temporary})")
+#        pass
 
 
 

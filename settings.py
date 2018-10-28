@@ -2,9 +2,21 @@
 
 
 
-global LETTERS_ON_BOARD 
 
-LETTERS_ON_BOARD = [
+
+# ***SETTINGS***
+# TODO: create switch for setting language/modes
+searchPrecision = 0 # default: 100, 0 = search all words.
+
+
+# LANGUAGE AND LETTER DISTRIBUTION
+LANGUAGE = "german"
+
+
+
+global BOARD_ACTUAL
+
+BOARD_ACTUAL = [
                 # A    B    C    D    E    F    G    H    I    J    K    L    M    N    O
                 ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'], # 1
                 ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'], # 2
@@ -23,17 +35,21 @@ LETTERS_ON_BOARD = [
                 ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0']  # 15
                 ]
 
+# Temporary board
+global BOARD_TEMPORARY
+
+BOARD_TEMPORARY = BOARD_ACTUAL[:]
+
+# list for temporary Positions
+
+
+
+
 global SIZEHORIZONTAL
-SIZEHORIZONTAL = len(LETTERS_ON_BOARD)
+SIZEHORIZONTAL = len(BOARD_ACTUAL)
 global SIZEVERTICAL
-SIZEVERTICAL = len(LETTERS_ON_BOARD[0])
-# ***SETTINGS***
-# TODO: create switch for setting language/modes
-searchPrecision = 0 # default: 100, 0 = search all words.
+SIZEVERTICAL = len(BOARD_ACTUAL[0])
 
-
-# LANGUAGE AND LETTER DISTRIBUTION
-LANGUAGE = "german"
 
 # Point-values for letters:
 # Keys are letters, values are point-values in the game. 
@@ -62,4 +78,4 @@ def getGameSettings():
     # a switcher (secondary dict)
     scores = LETTERSGERMAN
     bag = AMOUNTGERMAN
-    return list(LANGUAGE, MODE, scores, bag)
+    return LANGUAGE, MODE, scores, bag
