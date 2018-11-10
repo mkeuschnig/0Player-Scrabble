@@ -761,6 +761,7 @@ def lettersCanBuildWord(wordToCheck, lettersGiven):
 def countRackLettersUsed(wordToCheck, lettersNotOnRack):
     # returns a list of the rack-letters used in a play.
     # the word can already be built with the rack-letters (since availablePlays calls lettersCanBuildWord).
+    pass 
 
 def countRackLettersUsed(wordToCheck, lettersNotOnRack):
     # returns a list of the rack-letters used in a play.
@@ -1493,7 +1494,7 @@ def mainProgram():
         printBoard()
         print(f"\nEnd of turn {gameTurn}.\n")
         
-        #DEBUG
+        # DEBUG:
         #userinput = input("Press Enter...")
         #userinput = "a"
         #if userinput != "":
@@ -1520,7 +1521,7 @@ else:
     d.close()
 
 
-#DEBUG
+# DEBUG:
 #setWordOnBoard("ERNST", "F8", "H", temporary = False)
 
 temporaryBoard = copy.deepcopy(lettersOnBoard)

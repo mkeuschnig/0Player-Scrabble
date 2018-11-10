@@ -1,139 +1,137 @@
-from collections_extended import frozenbag
 import timeit
 
+from sys import path as OSP
+OSP.insert(0, 'E:\\Projekte\\0Player-Scrabble\\')
+import settings as S
+import logic as L
 
 
-def lettersCanBuildWord(wordToCheck, lettersGiven):
-    #
-    # since this function is called inside a nested for-loop, wordToCheck.unique_elements(): is the same every time and doesnt need to be re-established every time - rework!
-    wordToCheck = frozenbag(wordToCheck)
-    
-    # handling the joker-character:
-    # count the jokers in lettersGiven (= the rack)
-    jokers = lettersGiven.count("?")
-    lettersGiven = lettersGiven.replace("?","",jokers)
+#wordModifiers = {"DW":2, "TW":3, "QW":4, "DL":1, "TL":1, "QL":1, "":1}
+#letterModifiers = {"DW":1, "TW":1, "QW":1, "DL":2, "TL":3, "QL":4, "":1}
+#wordModifiers.setdefault(d=1)
 
-    lettersGiven = frozenbag(lettersGiven) # = letters on the board + letters on the rack
+def setWordToPositionNEW(wordToSet:str, startPosition:str, endPosition:str=None, orientation:str=None, jokerLetter:str='', isTemporary=False):
+    # IDEA: print a warning-message if the endPosition gets overwritten.
+    if "?" in wordToSet:
+        if jokerLetter is None or wordToSet.count("?") != len(jokerLetter):
+            raise ValueError(f"""
+                Mismatch: 
+                Jokers: {wordToSet.count("?")}
+                Replacement letters: {len(jokerLetter)}
+                """)
 
+    #-1 because wordLength starts counting at 1.
+    endOffset = len(wordToSet)-1
+    jokersUsed = 0
 
-    
-    # counts every unique letter in wordToCheck, returns TRUE if all lettersGiven are contained in at least the same amount in wordToCheck.
-    # the count of the unique letters must be equal or less to the unique letters in wordToCheck
-
-    # Letters in ERNSTHA+EE:
-    # E: 3, R: 1, N: 1, S: 1, T: 1, H: 1, A: 1
-    # checking for "THREATENERS":
-    # T: 2 vs T: 1 - return False (more in wordToCheck than in lettersGiven)
-    # checking for "REST":
-    # R: 1, E: less than 3, S: 1, T: 1 - return True
-    
-    for letter in wordToCheck.unique_elements():
-        #DEBUG:
-        #print(f"letter: {letter}, amount in word '{wordToCheck}': {wordToCheck.count(letter)}")
-        #print(f"available in {lettersGiven}: {lettersGiven.count(letter)}")
-        if(wordToCheck.count(letter) > lettersGiven.count(letter)):
-            if jokers > 0:
-                #print("Joker used")
-                jokers -= 1
-                continue
-            else:
-                #print("Word can't be built")
-                return False # quits the function in the middle.
-    return True
-
-
-def buildWordAlt(wordToCheck, lettersGiven):
-    #implementation of the word-building check without frozenbag
-    #fixedPositionsInRange = list(set(wordRange).intersection(fixedPositions))
-    listWordTarget = list(wordToCheck)
-    listWordSource = list(lettersGiven)
-    numJokers = lettersGiven.count("?")
-
-    for letter in set(listWordTarget):
-        #print(letter)
-        #print("Count in ListWordTarget:", listWordTarget.count(letter))
-        #print("Count in ListWordSource:", listWordSource.count(letter))
-        countSource = listWordSource.count(letter)
-        countTarget = listWordTarget.count(letter)
-        if countSource < countTarget:
-            # try to use the joker(s) on the first missing letter
-            # must have at least 1 joker, and the number of Letters in Source need to be equal to counted letters + number of jokers
-            if numJokers > 0 and countSource+numJokers >= countTarget:
-                #print(f"{countSource} + {numJokers}=", countSource + numJokers)
-                #print(f"Letter {letter} is a Joker")
-                numJokers -= 1
-                continue
-            return False
+    if orientation is None:
+        if endPosition is None:
+            raise AttributeError("""
+            Either orientation or endPosition must be given.
+            """)
         else:
-            continue
-    return True
+            orientation = L.getOrientation(startPosition, endPosition)
 
-def buildWord(wordToCheck, lettersGiven):
-    #testing if not converting to lists makes it faster
-    #listWordTarget = list(wordToCheck)
-    #listWordSource = list(lettersGiven)
-    numJokers = lettersGiven.count("?")
+    if orientation == "X":
+        endPosition = L.getModifiedPosition(startPosition, modByX = endOffset)
+    elif orientation == "Y":
+        endPosition = L.getModifiedPosition(startPosition, modByY = endOffset)
+    else:
+        raise ValueError("orientation takes either 'X' or 'Y'.")
 
-    for letter in set(wordToCheck):
-        #print(letter)
-        #print("Count in ListWordTarget:", listWordTarget.count(letter))
-        #print("Count in ListWordSource:", listWordSource.count(letter))
-        countSource = lettersGiven.count(letter)
-        countTarget = wordToCheck.count(letter)
-        if countSource < countTarget:
-            # try to use the joker(s) on the first missing letter
-            # must have at least 1 joker, and the number of Letters in Source need to be equal to counted letters + number of jokers
-            if numJokers > 0 and countSource+numJokers >= countTarget:
-                #print(f"{countSource} + {numJokers}=", countSource + numJokers)
-                #print(f"Letter {letter} is a Joker")
-                numJokers -= 1
-                continue
-            return False
-        else:
-            continue
-    return True
+    positionList = L.convertPositionsToList(startPosition, endPosition)
+    for index, currentPosition in enumerate(positionList):
+        #print(index,currentPosition)
+        currentLetter = wordToSet[index]
+        if currentLetter == "?":
+            currentLetter += ''.join(jokerLetter[jokersUsed])
+            jokersUsed += 1
+        L.setLetterToPosition(currentPosition, currentLetter)
+        #debug
 
-rack = ['?', 'S', 'B', 'M', 'N', 'M', 'F']
-allLetters = "".join(rack) + "A"
+    for delPosition in positionList:
+        L.deleteLetterFromPosition(delPosition)
+
+def setWordToPositionOLD(wordToSet:str, position:str, isTemporary=False, horizontalOrVertical = "H"):
+    x,y = L.convertPositionToCoordinate(position)
+    mod = 0
+    positionList = []
+    if "?" in wordToSet:
+        # wordLength is one shorter, since the ?-character and the one afterwards are placed as one
+        wordLength = len(wordToSet) -1
+    else:
+        wordLength = len(wordToSet)
+
+
+    #print(f"Placing {word} at {position}, {horizontalOrVertical}")
+    # count from 0 to the length of the word
+    for i in range(0,wordLength):       
+        letter = wordToSet[i+mod]
+        # ?-character and the one afterwards are placed as one
+        if letter == "?":
+            # string position is modified by 1 for the rest of the word.
+            mod += 1
+            letter += wordToSet[i+mod]
+            #continue
+
+
+        if horizontalOrVertical.upper() == "H":
+            # Place the word letter by letter along the x-axis
+            currentPosition = L.convertCoordinateToPosition(x+i,y)
+            # TODO: grab letters from the rack to write
+        if horizontalOrVertical.upper() == "V":
+            currentPosition = L.convertCoordinateToPosition(x,y+i)
+            # Place the word letter by letter along the x-axis
+        positionList.append(currentPosition)
+        L.setLetterToPosition(currentPosition, letter, isTemporary)
+
+    for delPosition in positionList:
+        L.deleteLetterFromPosition(delPosition)
+
+
+
+# SHOWDOWN
 timeTakenA = 0
 timeTakenB = 0
 timeTakenC = 0
-# SHOWDOWN
 
 for i in range(0,10):
-    TimeA = timeit.Timer(lambda: lettersCanBuildWord("BESAMEN", allLetters))
-    timeTakenA += TimeA.timeit(number = 100000)
+    TimeA = timeit.Timer(lambda: setWordToPositionNEW("FRANKENFENSTERN", "A1", "A15"))
+    timeTakenA += TimeA.timeit(number = 10000)
 
-    TimeB = timeit.Timer(lambda: buildWord("BESAMEN", allLetters))
-    timeTakenB += TimeB.timeit(number = 100000)
+    TimeB = timeit.Timer(lambda: setWordToPositionOLD("FRANKENFENSTERN", "A1", "A15"))
+    timeTakenB += TimeB.timeit(number = 10000)
     
-    TimeC = timeit.Timer(lambda: buildWordAlt("BESAMEN", allLetters))
-    timeTakenC += TimeC.timeit(number = 100000)
+    #TimeC = timeit.Timer(lambda: FUNCTION)
+    #timeTakenC += TimeC.timeit(number = 10000)
 
 
 
 print(f"Average Time for TimeA: {timeTakenA/(i+1)}")
-lettersCanBuildWord("BESAMEN", allLetters)
+
 print(f"Average Time for TimeB: {timeTakenB/(i+1)}")
-buildWord("BESAMEN", allLetters)
-print(f"Average Time for TimeC: {timeTakenC/(i+1)}")
-buildWordAlt("BESAMEN", allLetters)
 
-for i in range(0,10):
-    TimeA = timeit.Timer(lambda: lettersCanBuildWord("FASANMMB", allLetters))
-    timeTakenA += TimeA.timeit(number = 100000)
 
-    TimeB = timeit.Timer(lambda: buildWord("FASANMMB", allLetters))
-    timeTakenB += TimeB.timeit(number = 100000)
+
+#timeTakenA = 0
+#timeTakenB = 0
+#timeTakenC = 0
+
+#for i in range(0,10):
+#    TimeA = timeit.Timer(lambda: getWordModifierIFELIF("A1"))
+#    timeTakenA += TimeA.timeit(number = 10000)
+
+#    TimeB = timeit.Timer(lambda: getWordModifierDICT("A1"))
+#    timeTakenB += TimeB.timeit(number = 10000)
     
-    TimeC = timeit.Timer(lambda: buildWordAlt("FASANMMB", allLetters))
-    timeTakenC += TimeC.timeit(number = 100000)
+##    TimeC = timeit.Timer(lambda: buildWordAlt("FASANMMB", allLetters))
+##    timeTakenC += TimeC.timeit(number = 100000)
 
 
 
-print(f"Average Time for TimeA: {timeTakenA/(i+1)}")
-lettersCanBuildWord("FASANMMB", allLetters)
-print(f"Average Time for TimeB: {timeTakenB/(i+1)}")
-buildWord("FASANMMB", allLetters)
-print(f"Average Time for TimeC: {timeTakenC/(i+1)}")
-buildWordAlt("FASANMMB", allLetters)
+#print(f"Average Time for TimeA: {timeTakenA/(i+1)}")
+#getWordModifierIFELIF("A1")
+#print(f"Average Time for TimeB: {timeTakenB/(i+1)}")
+#getWordModifierDICT("A1")
+##print(f"Average Time for TimeC: {timeTakenC/(i+1)}")
+##buildWordAlt("FASANMMB", allLetters)
