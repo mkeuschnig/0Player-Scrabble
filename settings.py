@@ -48,7 +48,7 @@ BOARD_TEMPORARY = deepcopy(BOARD_ACTUAL)
 # Board for the Word- and Letter-modifiers:
 global BOARD_MODIFIERS
 BOARD_MODIFIERS = [
-    # A   B  C    D    E    F    G    H    I    J    K    L    M    N    O
+    # A   B   C   D    E    F    G    H    I    J    K    L    M    N    O
     ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],   # 1
     ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],    # 2
     ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],    # 3

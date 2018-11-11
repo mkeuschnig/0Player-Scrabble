@@ -15,8 +15,9 @@
 import settings as S
 import checks as C
 
+#from main import GAMESETTINGS
 global GAMESETTINGS
-
+GAMESETTINGS = list(S.getGameSettings())
 
 def findIndexesOfLetterInWord(letterToFind:str, wordToSearch:str) -> list:
     # search_substring_indices from StackExchange
@@ -459,6 +460,8 @@ def scoreLetter(letter:str, position:str, isTemporary:bool=False) -> int:
     """
     Return the Points from a Letter on a Position.
     """
+    #global GAMESETTINGS
+    #print(GAMESETTINGS)
     if letter == "?":
         return 0
      # TODO: make GAMESETTINGS a proper Dict
@@ -468,7 +471,7 @@ def scoreLetter(letter:str, position:str, isTemporary:bool=False) -> int:
         multiplier = getLetterMultiplier(position=position)
         return points * multiplier
     else:
-        letter = L.getLetterFromPosition(position, isTemporary)
+        letter = getLetterFromPosition(position, isTemporary)
         points = GAMESETTINGS[2].get(letter)
         return points
 

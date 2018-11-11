@@ -9,6 +9,9 @@ import shelve
 from sys import path as OSP
 #import importlib
 
+# linter
+# TODO: Lint all python-files from the project
+#import pylint as lint
 
 # DEBUG: insert working directory in path to access the Scrabble-specific files
 # TODO: work out proper path
@@ -36,14 +39,21 @@ import unit_tests as UT
 
 # ***GLOBALS***
 # TODO: Make proper Game-Settings in a dict
-global GAMESETTINGS
-GAMESETTINGS = list(S.getGameSettings())
+#global GAMESETTINGS
+#GAMESETTINGS = list(S.getGameSettings())
 
 
 #pprint.pprint(GAMESETTINGS)
-print(GAMESETTINGS)
+#print(GAMESETTINGS)
 
 
 # Pseudo Unit-Testing/Sanity-Checks: 
 UT.unit_tests()
+
+#lint.run_pylint(settings)
+#lint.run_pylint(checks)
+#lint.run_pylint(logic)
+#lint.run_pylint(display)
+#lint.run_pylint(logging)
+#lint.run_pylint(__name__)
 

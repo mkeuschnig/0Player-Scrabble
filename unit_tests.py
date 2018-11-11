@@ -60,7 +60,7 @@ def unit_tests():
     for currentPosition in L.convertPositionsToList("A1", "E1"):
         w += "".join(L.getLetterFromPosition(currentPosition, 
                                                 isTemporary = False))
-    print(w)
+    #print(w)
     assert w == "ERNST"
 
     # Place "TEMPOR�R" on temporary board
@@ -78,7 +78,7 @@ def unit_tests():
     for currentPosition in L.convertPositionsToList("A1", "H1"):
         w += "".join(L.getLetterFromPosition(currentPosition, 
                                              isTemporary = True))
-    print(w)
+    #print(w)
     assert w == "TEMPORÄR"
 
     # get filled positions from both boards in various ways.
@@ -115,7 +115,7 @@ def unit_tests():
     w = ""
     for tempPosition in S.RECENT_POSITIONS_TEMPORARY:
         w += ''.join(L.getLetterFromPosition(tempPosition, isTemporary = True))
-    print(w)
+    #print(w)
 
     # clear the recent temporary positions.
     assert len(S.RECENT_POSITIONS_TEMPORARY) > 0
@@ -169,5 +169,13 @@ def unit_tests():
     assert L.getWordFromPosition("A5","E5", showJoker = False) == "ERNST"
 
     # score letters
+    assert L.scoreLetter("E", "O1") == 1
+    assert L.scoreLetter("Q", "O1") == 10
+    assert L.scoreLetter("Q", "M7") == 20
+    assert L.scoreLetter("K", "N6") == 12
 
+    # score Words
+    assert L.scoreWord("ERNST", "A1", "E1") == 15
+    assert L.scoreWord("ERNST", "A1", axis = "X") == 15
+    assert L.scoreWord("WIEDERKEHRENDER", "O1", axis = "Y") == 621
 # end of unit_tests()
