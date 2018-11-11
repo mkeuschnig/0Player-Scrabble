@@ -23,7 +23,7 @@ def checkIsPositionValid(positionString:str) -> bool:
 
 def checkIsCoordinateValid(x:int, y:int) -> bool:
     """
-    Takes x,y-coordinate, returns True if the coordinate is on the board.
+    Take x,y-coordinate, return True if the coordinate is on the board.
     """
     if (x < S.SIZEHORIZONTAL and x >= 0) and (
         y < S.SIZEVERTICAL and y >= 0):
@@ -33,8 +33,8 @@ def checkIsCoordinateValid(x:int, y:int) -> bool:
 
 def checkIsPositionEmpty(position:str, isTemporary:bool=False) -> bool:
     """
-    Takes a position (optionally on the temporary board), 
-    returns True if the Square is empty.
+    Take a position (optionally on the temporary board), 
+    return True if the Square is empty.
     """
     x, y = L.convertPositionToCoordinate(position)
 
@@ -44,3 +44,16 @@ def checkIsPositionEmpty(position:str, isTemporary:bool=False) -> bool:
         return True
     else:
         return False
+
+def checkEndPositionAndAxisNotNone(endPosition:str, axis:str) -> bool:
+    """
+    Take endPosition with and an axis, raise AttributeError
+    if both are None. 
+    Return True otherwise.
+    """
+    if axis is None and endPosition is None:
+        raise AttributeError("""
+        Either axis or endPosition must be given.
+        """)
+    else:
+        return True

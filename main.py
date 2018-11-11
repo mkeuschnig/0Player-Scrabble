@@ -12,8 +12,8 @@ from sys import path as OSP
 
 # DEBUG: insert working directory in path to access the Scrabble-specific files
 # TODO: work out proper path
-OSP.insert(0, 'E:\\Projekte\\0Player-Scrabble\\')
-#path.insert(-1, "D:\\Projekte\\Scrabble Solver\\0Player-Scrabble\\")
+#OSP.insert(0, 'E:\\Projekte\\0Player-Scrabble\\')
+OSP.insert(0, "D:\\Projekte\\Scrabble Solver\\0Player-Scrabble\\")
 
 #TODO: check if the other modules exist. OS.path or sys.path
 #http://effbot.org/librarybook/os-path.htm

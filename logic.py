@@ -100,7 +100,7 @@ def setValueToBoard(value:str,
     boardObject[y][x] = value
 
 
-def getModifiedPosition(position:str, modByX=0, modByY=0) -> str:
+def getModifiedPosition(position:str, modByX:int=0, modByY:int=0) -> str:
     """
     Take a position-string, Return a position-string with the X/Y value changed.
     Return None if the resulting position is invalid.
@@ -111,23 +111,64 @@ def getModifiedPosition(position:str, modByX=0, modByY=0) -> str:
     if position is None: return None # return invalid position
 
     x, y = convertPositionToCoordinate(position)
-    newCoordinate = (x + modByX, y + modByY)
- 
-    if C.checkIsCoordinateValid(newCoordinate[0],newCoordinate[1]) is True:
-        return convertCoordinateToPosition(newCoordinate[0],newCoordinate[1])
+    newX = x + modByX
+    newY = y + modByY
+    
+    if C.checkIsCoordinateValid(newX, newY) is True:
+        return convertCoordinateToPosition(newX, newY)
     else:
         return None
 
-def getOrientation(startPosition:str, endPosition:str) -> str:
-    if startPosition[0] == endPosition[0]: # Vertical orientation
+def getAxis(startPosition:str, endPosition:str) -> str:
+    if startPosition[0] == endPosition[0]: # Vertical axis
         return "Y"
-    elif startPosition[1:] == endPosition[1:]: # Horizontal orientation
+    elif startPosition[1:] == endPosition[1:]: # Horizontal axis
         return "X"
     else:
         print(f"""
-        Error: convertPositionsToList: 
+        Warning: getAxis({startPosition}, {endPosition}): 
         \t {startPosition} and {endPosition} are not on the same X or Y-Axis.
         """)
+        return None
+
+def getEndPosition(word:str, startPosition:str, axis:str) -> str:
+  
+    # -1 since we already know the startPosition
+    offset = len(word) - 1
+
+    if axis == "X":
+        endPosition = getModifiedPosition(startPosition, modByX = offset)
+    elif axis == "Y":
+        endPosition = getModifiedPosition(startPosition, modByY = offset)
+    else:
+        raise ValueError("axis takes either 'X' or 'Y'.")
+    if C.checkIsPositionValid(endPosition):
+        return endPosition
+    else:
+        return None
+
+def getEndPositionAndAxis(word:str, 
+                          startPosition:str, endPosition:str, axis:str):
+    """
+    Determine the endPosition and axis of a word, given its starting position
+    and either the intended axis or the endPosition.
+
+    Returning: endPosition, axis
+
+    "TEST", "A1", axis = "X"-> "D1", "X"
+    "TEST", "A1", "A4"      -> "A4", "Y"
+    """
+    # guard clause: endPosition and axis are already given.
+    if endPosition is not None and axis is not None:
+        return endPosition, axis
+
+    if C.checkEndPositionAndAxisNotNone(endPosition, axis) is True:
+        if axis is None:
+            axis = getAxis(startPosition, endPosition)
+            return endPosition, axis
+        if endPosition is None:
+            endPosition = getEndPosition(word, startPosition, axis)
+            return endPosition, axis
 
 def convertPositionsToList(startPosition:str, endPosition:str=None) -> list:
     """
@@ -144,16 +185,18 @@ def convertPositionsToList(startPosition:str, endPosition:str=None) -> list:
     else:
         endX, endY = convertPositionToCoordinate(endPosition)
 
-    if getOrientation(startPosition, endPosition) == "Y": # Vertical
+    axis = getAxis(startPosition, endPosition)
+
+    if axis == "Y": # Vertical
         # endY+1 so the ending coordinate is included
         for currentY in range(startY, endY+1): 
             resultList.append(convertCoordinateToPosition(startX,currentY))
-    elif getOrientation(startPosition, endPosition) == "X": # Horizontal
+    elif axis == "X": # Horizontal
         for currentX in range(startX, endX+1): 
             resultList.append(convertCoordinateToPosition(currentX,startY))
     else:
         print(f"""
-        Error: convertPositionsToList: 
+        Warning: convertPositionsToList({startPosition}, {endPosition}): 
         \t {startPosition} and {endPosition} are not on the same X or Y-Axis.
         """)
         return []
@@ -265,7 +308,7 @@ def getFilledPositionList(startPosition:str, endPosition:str=None,
             endPosition = startPosition
 
         positionsToCheck = convertPositionsToList(startPosition, 
-                                                      endPosition)
+                                                  endPosition)
 
     for currentPosition in positionsToCheck:
         if C.checkIsPositionEmpty(currentPosition, isTemporary) is False:
@@ -304,9 +347,6 @@ def clearAllTemporaryPositions():
 
     S.RECENT_POSITIONS_TEMPORARY.clear()
 
-def getEndPosition():
-    pass
-
 def getWordFromPosition(startPosition:str, endPosition:str, 
                         isTemporary:bool=False,
                         showJoker=False) -> str:
@@ -328,16 +368,15 @@ def getWordFromPosition(startPosition:str, endPosition:str,
 
     return resultString
 
-
-def setWordToPosition(wordToSet:str, 
-                      startPosition:str, 
+def setWordToPosition(wordToSet:str,
+                      startPosition:str,
                       endPosition:str=None,
-                      orientation:str=None,
+                      axis:str=None,
                       jokerReplacement:str='',
                       isTemporary=False):
     """
     Place a Word onto the board, given the word-string and a startPosition.
-    Either endPosition or orientation is required.
+    Either endPosition or axis is required.
 
     If jokers are in wordToSet, the same number of jokerReplacements is needed.
     jokerReplacement(s) are placed alongside their jokers into a Position.
@@ -345,7 +384,7 @@ def setWordToPosition(wordToSet:str,
     Example:
     Set word "STAR" from A1 to A4:
     "STAR", "A1", "A4"
-    "STAR", "A1", orientation = "X"
+    "STAR", "A1", axis = "X"
     "ST?R", "A1", "A4", jokerReplacements = "A" -> A3 contains "?A"
     """
     # IDEA: print a warning-message if the endPosition gets overwritten.
@@ -354,7 +393,8 @@ def setWordToPosition(wordToSet:str,
     # handling a joker-character: (?)
     # check if number of jokers and replacements match
     if "?" in wordToSet:
-        if jokerReplacement is None or wordToSet.count("?") != len(jokerReplacement):
+        if jokerReplacement is None or (
+           wordToSet.count("?") != len(jokerReplacement)):
             raise ValueError(f"""
                 Mismatch: 
                 Jokers: {wordToSet.count("?")}
@@ -367,42 +407,32 @@ def setWordToPosition(wordToSet:str,
     # index of jokerReplacement
     jokersUsedIndex = 0
 
-    if orientation is None:
-        if endPosition is None:
-            raise AttributeError("""
-            Either orientation or endPosition must be given.
-            """)
-        else:
-            orientation = getOrientation(startPosition, endPosition)
-   
-    if orientation == "X":
-        endPosition = getModifiedPosition(startPosition, modByX = endOffset)
-    elif orientation == "Y":
-        endPosition = getModifiedPosition(startPosition, modByY = endOffset)
-    else:
-        raise ValueError("orientation takes either 'X' or 'Y'.")
+    endPosition, axis = getEndPositionAndAxis(wordToSet, 
+                                              startPosition, endPosition, axis)
 
     positionList = convertPositionsToList(startPosition, endPosition)
 
-    for index, currentPosition in enumerate(positionList):
-        currentLetter = wordToSet[index]
+    for positionIndex, currentLetter in enumerate(wordToSet):
         if currentLetter == "?":
             # join the intended letter for the word to the right of the joker.
             currentLetter += ''.join(jokerReplacement[jokersUsedIndex])
             jokersUsedIndex += 1
-        setLetterToPosition(currentPosition, currentLetter)
+        currentPosition = positionList[positionIndex]
+        setLetterToPosition(currentPosition, currentLetter, isTemporary)
 
-def getWordModifier(startPosition:str, endPosition:str=None) -> int:
+def getWordMultiplier(startPosition:str, endPosition:str=None) -> int:
     """
     Return the total Word-Multiplier for the area from startPosition to endPosition.
-    Word-modifiers stack multiplicatively and each can only be used once.
+    Word-multipliers stack multiplicatively and each can only be used once.
+
+    "A1", "A15" -> 27 (3 * 3 * 3)
     """
-    modifier = 1
+    multiplier = 1
 
     if endPosition is None or endPosition == startPosition:
         field = getValueFromBoard(S.BOARD_MODIFIERS, 
                                   position = startPosition)
-        modifier *= S.MODIFIER_WORD.get(field)
+        multiplier *= S.MODIFIER_WORD.get(field)
     else:
         positionList = convertPositionsToList(startPosition, endPosition)
         for currentPosition in positionList:
@@ -411,20 +441,19 @@ def getWordModifier(startPosition:str, endPosition:str=None) -> int:
             if len(field) == 0: # "" is returned on an empty field.
                 continue
             else:
-                modifier *= S.MODIFIER_WORD.get(field)
+                multiplier *= S.MODIFIER_WORD.get(field)
+    return multiplier
 
-    return modifier
-
-def getLetterModifier(position:str) -> int:
+def getLetterMultiplier(position:str) -> int:
     """
     Return the Letter-Multiplier for a position.
-    Letter-multipliers are counted before word-modifiers and can 
+    Letter-multipliers are counted before word-multipliers and can 
     only be used once.
     """
-    modifier = 1
+    multiplier = 1
     field = getValueFromBoard(S.BOARD_MODIFIERS, position = position)
-    modifier *= S.MODIFIER_LETTER.get(field)
-    return modifier
+    multiplier *= S.MODIFIER_LETTER.get(field)
+    return multiplier
 
 def scoreLetter(letter:str, position:str, isTemporary:bool=False) -> int:
     """
@@ -432,11 +461,11 @@ def scoreLetter(letter:str, position:str, isTemporary:bool=False) -> int:
     """
     if letter == "?":
         return 0
-     # TODO: make Gamesettings a proper Dict
+     # TODO: make GAMESETTINGS a proper Dict
      # DEBUG
     if C.checkIsPositionEmpty(position, isTemporary) is True:
         points = GAMESETTINGS[2].get(letter)
-        multiplier = getLetterModifier(position=position)
+        multiplier = getLetterMultiplier(position=position)
         return points * multiplier
     else:
         letter = L.getLetterFromPosition(position, isTemporary)
@@ -444,88 +473,24 @@ def scoreLetter(letter:str, position:str, isTemporary:bool=False) -> int:
         return points
 
 def scoreWord(word:str, 
-              startPosition:str, endPosition:str=None, 
+              startPosition:str, endPosition:str=None,
+              axis:str=None,
               isTemporary:bool=False):
     """
     Return the total score of a word placed on a board (temporary or actual).
-    """
-    letterList = list(word)
-    if endPosition is None:
-        endPosition = getModifiedPosition(startPosition, len(word))
+    """  
+    endPosition, axis = getEndPositionAndAxis(word, 
+                                              startPosition, endPosition, axis)
+    
     positionList = convertPositionsToList(startPosition, endPosition)
-    #checking for orientation might not be necessary.
-    # YES IT IS
-    # TODO: ADD TINY FUNCTION FOR GRABBING THE POSITION OF THE LAST LETTER OF A GIVEN WORD
-    #if orientation == "X":
-    #    endPosition = getModifiedPosition(startPosition, modByX = endOffset)
-    #elif orientation == "Y":
-    #    endPosition = getModifiedPosition(startPosition, modByY = endOffset)
-    #else:
-    #    raise ValueError("orientation takes either 'X' or 'Y'.")
-
-
-def scoreWord(word, startPosition, horizontalOrVertical = "H"):
-    # TODO: in order to not have to evaluate every single combination of words 
-    # on the entire board, calculate the highest-scoring word for a row/column 
-    # - if that word is already in the suggestions, skip evaluating that row/col.
-
-    # check if the word is placed on a word-modifier - if yes, collect the score of the single letters
-    # and modify the score of the entire word. A word can have more than one multiplier.
     
-    
-    # extract an eventual joker-character, the word "ST?ERN" would become "ST?RN"
-    jokers = list(substring_indexes("?", word))
-    if len(jokers) > 0:
-      for entry in jokers:
-          replaceIndex = int(entry) + 1
-          word = word[:replaceIndex-1] + "?" + word[replaceIndex+1:]
-
-    #print("SCOREWORD:",word)
-    #jokers = list(substring_indexes("(", word))
-    #if len(jokers) > 0:
-    #    for entry in jokers:
-    #        replaceIndex = int(entry) + 1 
-    #        #print(word)
-    #        word = word[:replaceIndex] + "?" + word[replaceIndex+1:]
-    #        word = word.replace("(","")
-    #        word = word.replace(")","")
-            #print(word)
-
-    # function does not actually place a word or a letter, it just returns a score for a given word on a given position.
-    # the score of a word is the sum of all results of scoreLetter, modified where necessary
-    startX,startY = positionToCoord(startPosition)
     wordScore = 0
-    letterScore = 0
-    wordLength = len(word)
-    # wordMultiplier: Double Word, Triple Word
-    wordMultiplier = 1
+    wordMultiplier = getWordMultiplier(startPosition, endPosition)
 
-
-
-    # get modifiers first
-    if horizontalOrVertical[0].upper() == "H":
-        endX = startX + wordLength
-        endY = startY
-        for i in range(startX, endX):
-            wordMultiplier = getWordModifierFromPosition(wordMultiplier, None, i, startY)
-        # score the word
-        for letter in range(wordLength):
-            wordScore += scoreLetter(word[letter],None,startX + letter, startY)
-
-
-    elif horizontalOrVertical[0].upper() == "V":
-        endX = startX
-        endY = startY + wordLength
-        for i in range(startY, endY):
-            wordMultiplier = getWordModifierFromPosition(wordMultiplier, None, startX, i)
-        # score the word
-        for letter in range(wordLength):
-            wordScore += scoreLetter(word[letter],None,startX, startY + letter)
-    else:
-        pass
-        #print("function scoreWord: 'H' or 'V' expected for variable 'horizontalOrVertical'.")
-   
-    #print("WordScore: ", wordScore)
-    #print("WordModifier:", wordMultiplier)
-    #print(f"Total Score for {word} on {startPosition}: {wordScore * wordMultiplier}")
+    for positionIndex, currentLetter in enumerate(word):
+        currentPosition = positionList[positionIndex]
+        wordScore += scoreLetter(currentLetter, currentPosition, isTemporary)
     return wordScore * wordMultiplier
+    
+
+
