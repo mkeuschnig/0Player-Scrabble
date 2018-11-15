@@ -7,7 +7,6 @@ import re
 import shelve
 #from copy import deepcopy
 from sys import path as OSP
-#import importlib
 
 # linter
 # TODO: Lint all python-files from the project
@@ -15,8 +14,8 @@ from sys import path as OSP
 
 # DEBUG: insert working directory in path to access the Scrabble-specific files
 # TODO: work out proper path
-#OSP.insert(0, 'E:\\Projekte\\0Player-Scrabble\\')
-OSP.insert(0, "D:\\Projekte\\Scrabble Solver\\0Player-Scrabble\\")
+OSP.insert(0, 'E:\\Projekte\\0Player-Scrabble\\')
+#OSP.insert(0, "D:\\Projekte\\Scrabble Solver\\0Player-Scrabble\\")
 
 #TODO: check if the other modules exist. OS.path or sys.path
 #http://effbot.org/librarybook/os-path.htm
@@ -27,7 +26,7 @@ import pprint
 
 # import scrabble-specific source files as global
 global S, C, L, D, ScrabbleLogging
-import settings as S
+import settings as S 
 import checks as C
 import logic as L
 import display as D
@@ -42,7 +41,6 @@ import unit_tests as UT
 #global GAMESETTINGS
 #GAMESETTINGS = list(S.getGameSettings())
 
-
 #pprint.pprint(GAMESETTINGS)
 #print(GAMESETTINGS)
 
@@ -56,4 +54,5 @@ UT.unit_tests()
 #lint.run_pylint(display)
 #lint.run_pylint(logging)
 #lint.run_pylint(__name__)
+
 

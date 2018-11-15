@@ -2,16 +2,21 @@
 # Globals and Settings go here.
 from copy import deepcopy
 
-
-
-
 # ***SETTINGS***
+global GAMESETTINGS
+
 # TODO: create switch for setting language/modes
 searchPrecision = 0 # default: 100, 0 = search all words.
 
 
 # LANGUAGE AND LETTER DISTRIBUTION
 LANGUAGE = "german"
+
+
+# MODE
+# scrabble/super-scrabble/etc. - 
+# see https://en.wikipedia.org/wiki/Scrabble#Gameboard_formats
+MODE = "scrabble"
 
 
 
@@ -141,13 +146,7 @@ AMOUNTENGLISH = {
                 "Z":1, "?":2
                 }
 
-# MODE
-# scrabble/super-scrabble/etc. - 
-# see https://en.wikipedia.org/wiki/Scrabble#Gameboard_formats
-MODE = "scrabble"
 
-# list to hold the letters from the bag
-RACK = []
 
 def getGameSettings():
     global LANGUAGE, MODE
@@ -155,7 +154,11 @@ def getGameSettings():
     # a switcher (secondary dict)
     scores = LETTERSGERMAN
     bag = AMOUNTGERMAN
-    return LANGUAGE, MODE, scores, bag
+    return {"language":LANGUAGE, 
+            "mode":MODE, 
+            "letterScore":scores, 
+            "bag":bag
+            }
 
 # Helper-function to return either the temporary or actual board.
 def getBoardObject(isTemporary:bool) -> object:
@@ -163,3 +166,12 @@ def getBoardObject(isTemporary:bool) -> object:
         return BOARD_TEMPORARY
     else:
         return BOARD_ACTUAL
+
+
+
+# list to hold the letters from the bag
+RACK = []
+#debug
+
+# commands
+GAMESETTINGS = getGameSettings()

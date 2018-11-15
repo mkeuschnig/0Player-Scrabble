@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 
+
 # sandbox/scratch-files for figuring stuff out
 *[Ss]andbox.py
 *[Ss]cratch.py
@@ -35,9 +36,13 @@ bld/
 [Ll]og/
 
 # Visual Studio 2015/2017 cache/options directory
+*.vs
+/*.suo
+/slnx.sqlite
+/VSWorkspaceState.json
 /.vs
 *.vs
-.vs/
+.vs/*
 # Uncomment if you have tasks that create the project's static files in wwwroot
 #wwwroot/
 

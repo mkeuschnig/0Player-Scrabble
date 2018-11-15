@@ -1,10 +1,8 @@
 #1234567890123456789012345678901234567890123456789012345678901234567890123456789
 # contains the logic to search Words and convert Words to plays
-# TODO: import functions and clean them up
+# TODO: grab functions and clean them up
 # TODO: __init.py__ to handle the importing of modules (perhaps in settings.py)
 # TODO: handling for differently-sized board (super scrabble)
-# TODO: instead of using functionBoard[y][x] (a somewhat backwards approach),
-#       use a minor function to set something to X and Y on the given board
 # IDEA: Maybe "isTemporary" is too ambiguous. useTemporaryBoard?
 
 
@@ -16,8 +14,7 @@ import settings as S
 import checks as C
 
 #from main import GAMESETTINGS
-global GAMESETTINGS
-GAMESETTINGS = list(S.getGameSettings())
+rack = S.RACK
 
 def findIndexesOfLetterInWord(letterToFind:str, wordToSearch:str) -> list:
     # search_substring_indices from StackExchange
@@ -48,8 +45,6 @@ def convertCoordinateToPosition(x:int, y:int) -> str:
     14, 14  -> "O15"
     26, 65  -> None
     """
-    # invalid coordinate on the board.
-    # TODO - handle sizeVertical and sizeHorizontal with globals
     if C.checkIsCoordinateValid(x, y) is False:
         return None
     else:    
@@ -149,7 +144,8 @@ def getEndPosition(word:str, startPosition:str, axis:str) -> str:
         return None
 
 def getEndPositionAndAxis(word:str, 
-                          startPosition:str, endPosition:str, axis:str):
+                          startPosition:str, endPosition:str, 
+                          axis:str) -> tuple:
     """
     Determine the endPosition and axis of a word, given its starting position
     and either the intended axis or the endPosition.
@@ -458,21 +454,17 @@ def getLetterMultiplier(position:str) -> int:
 
 def scoreLetter(letter:str, position:str, isTemporary:bool=False) -> int:
     """
-    Return the Points from a Letter on a Position.
+    Return the Points of a Letter on a Position.
     """
-    #global GAMESETTINGS
-    #print(GAMESETTINGS)
     if letter == "?":
         return 0
-     # TODO: make GAMESETTINGS a proper Dict
-     # DEBUG
     if C.checkIsPositionEmpty(position, isTemporary) is True:
-        points = GAMESETTINGS[2].get(letter)
+        points = S.GAMESETTINGS["letterScore"].get(letter)
         multiplier = getLetterMultiplier(position=position)
         return points * multiplier
     else:
         letter = getLetterFromPosition(position, isTemporary)
-        points = GAMESETTINGS[2].get(letter)
+        points = S.GAMESETTINGS["letterScore"].get(letter)
         return points
 
 def scoreWord(word:str, 
@@ -495,5 +487,29 @@ def scoreWord(word:str,
         wordScore += scoreLetter(currentLetter, currentPosition, isTemporary)
     return wordScore * wordMultiplier
     
+def createWordShelve():
+    """
+    Creates a Shelve-File for the language set in settings.py, if it
+    doesn't already exist.
+    """
+
+    # TODO: make sure longer words are also included (super scrabble)
+    # create a list with regular expressions for words with 2 letters
+    # up to words with 15 letters
+
+    language = S.GAMESETTINGS["language"]
+    fileName = "".join([language,".txt"])
+    wordsFile = open(fileName)
+    regExWordLength = []
+
+    for wordLength in range(2,20+1): # +1 so the last position is included.
+        regExString = "".join([r"(^\w{", str(wordLength), "}$)"])
+        regExWordLength.append(re.compile(regExString))
+
+    for expression in regExWordLength:
+        print(expression)
+        pass
+    
+
 
 
