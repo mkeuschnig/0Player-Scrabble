@@ -496,19 +496,33 @@ def createWordShelve():
     # TODO: make sure longer words are also included (super scrabble)
     # create a list with regular expressions for words with 2 letters
     # up to words with 15 letters
+    import re
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-    language = S.GAMESETTINGS["language"]
-    fileName = "".join([language,".txt"])
-    wordsFile = open(fileName)
+    language = str(S.GAMESETTINGS["language"])
+    #DEBUGPATH for the direct window (remove for release):
+    debugPath = "E:\\Projekte\\0Player-Scrabble\\"
+    fileName = "".join([debugPath, language, ".txt"])
+    dictionaryFile = open(fileName)
+    
     regExWordLength = []
-
+    # create Regular Expressions for words with 2 to 20 letters.
     for wordLength in range(2,20+1): # +1 so the last position is included.
         regExString = "".join([r"(^\w{", str(wordLength), "}$)"])
         regExWordLength.append(re.compile(regExString))
 
+    wordsInFile = "".join(dictionaryFile.read().upper())
+
+
     for expression in regExWordLength:
+        #TODO FROM HERE
+        temporaryWords = expression.findall(wordsInFile)
         print(expression)
         pass
+
+        for letter in alphabet:
+            print(letter)
+            pass
     
 
 

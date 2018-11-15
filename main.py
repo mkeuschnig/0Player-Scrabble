@@ -35,7 +35,6 @@ import logging as ScrabbleLogging
 # DEBUG:
 import unit_tests as UT
 
-
 # ***GLOBALS***
 # TODO: Make proper Game-Settings in a dict
 #global GAMESETTINGS

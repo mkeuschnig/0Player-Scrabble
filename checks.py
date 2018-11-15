@@ -47,8 +47,7 @@ def checkIsPositionEmpty(position:str, isTemporary:bool=False) -> bool:
 
 def checkEndPositionAndAxisNotNone(endPosition:str, axis:str) -> bool:
     """
-    Take endPosition with and an axis, raise AttributeError
-    if both are None. 
+    Take endPosition and an axis, raise an Error if both are None. 
     Return True otherwise.
     """
     if axis is None and endPosition is None:

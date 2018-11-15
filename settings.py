@@ -173,5 +173,12 @@ def getBoardObject(isTemporary:bool) -> object:
 RACK = []
 #debug
 
+# list to load the available words for a language
+# the list will be 2-dimensional by the end.
+LANGUAGEWORDS = []
+
+
+
+
 # commands
 GAMESETTINGS = getGameSettings()
