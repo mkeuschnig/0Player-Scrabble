@@ -1,11 +1,11 @@
 #1234567890123456789012345678901234567890123456789012345678901234567890123456789
 # contains the checks used while searching Words or converting Plays.
 import settings as S
-#from logic import convertCoordinateToPosition, convertPositionToCoordinate
+#from logic import convert_coordinate_to_position, convert_position_to_coordinate
 import logic as L
 
 
-def checkIsPositionValid(positionString:str) -> bool:
+def is_position_valid(positionString:str) -> bool:
     """
     Takes a position, returns True if the position is on the board.
     "A1" --> True
@@ -16,12 +16,12 @@ def checkIsPositionValid(positionString:str) -> bool:
         return False
     else:
         return True
-    #if checkIsCoordinateValid(x, y) is True:
+    #if is_coordinate_valid(x, y) is True:
     #    return True
     #else:
     #    return False
 
-def checkIsCoordinateValid(x:int, y:int) -> bool:
+def is_coordinate_valid(x:int, y:int) -> bool:
     """
     Take x,y-coordinate, return True if the coordinate is on the board.
     """
@@ -31,7 +31,7 @@ def checkIsCoordinateValid(x:int, y:int) -> bool:
     else: 
         return False
 
-def checkIsPositionEmpty(position:str, isTemporary:bool=False) -> bool:
+def is_position_empty(position:str, isTemporary:bool=False) -> bool:
     """
     Take a position (optionally on the temporary board), 
     return True if the Square is empty.

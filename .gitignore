@@ -16,9 +16,9 @@
 *[Ss]cratch.py
 
 # shelve-files
-*.shelve.bak
-*.shelve.dat
-*.shelve.dir
+*.bak
+*.dat
+*.dir
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
