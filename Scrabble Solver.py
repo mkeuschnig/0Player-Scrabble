@@ -1062,7 +1062,7 @@ def drawLettersFromBag():
 
 def printBoard():
     global gameTurn
-    # simple table to display the board
+    # basics table to display the board
     # one square:
     #      A
     #    +---+

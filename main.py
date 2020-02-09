@@ -43,7 +43,7 @@ gameSettings = Settings.get_game_settings(GAMEMODE, LANGUAGE)
 Settings.set_game_settings(settings=gameSettings)
 
 # Pseudo Unit-Testing/Sanity-Checks:
-UT.simple()
+UT.basics()
 
 
 # Words5LettersWithE = gameSettings['words'][5]['E']

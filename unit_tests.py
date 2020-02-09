@@ -21,7 +21,7 @@ gameSettings = S.get_game_settings()
 S.set_game_settings(settings=gameSettings)
 
 
-def simple():
+def basics():
     # checks.py
     assert C.is_position_valid("A1") is True
     assert C.is_position_valid("O15") is True
@@ -213,9 +213,9 @@ def simple():
 
     S.set_rack("BEIN")
 
-    ernst = WS.create_play("ERNST", "F8", "x")
-    erde = WS.create_play("ERDE", "G7", "y")
-    erbse = WS.create_play("ERBSE", "I5", "y")
+    ernst = D.Play("ERNST", "F8", "x")
+    erde = D.Play("ERDE", "G7", "y")
+    erbse = D.Play("ERBSE", "I5", "y")
 
     L.execute_play(ernst)
     S.increase_turn()
@@ -309,7 +309,9 @@ def word_search():
                     placeable_suggestions.append(raw_word)
 
     for suggestion in placeable_suggestions:
-        possible_plays.append(WS.create_play(d_word=suggestion))
+        possible_plays.append(D.Play(suggestion.word,
+                                     suggestion.position,
+                                     suggestion.axis))
     pprint.pprint(possible_plays)
     print(f"total possible plays for turn {S.GAME_SETTINGS['turn']}: {len(possible_plays)}")
     # Display.print_board()
@@ -355,8 +357,9 @@ def play_creating():
     rack = S.get_rack()
     print("Rack:", rack)
 
-    test_play_a = WS.create_play("LÜSTERN", "G8", "X")
-    print(WS.find_execution(test_play_a))
+    test_play_a = D.Play("LÜSTERN", "G8", "X")
+    # print(WS.find_execution(test_play_a))
+    print(test_play_a.find_execution())
     print(test_play_a)
     # passes with
     # [('L', 'G8'),
@@ -371,9 +374,10 @@ def play_creating():
     S.increase_turn()
 
     S.set_rack("BEDARF")
-    test_play_b = WS.create_play("BEDARF", "F3", "Y")
+    test_play_b = D.Play("BEDARF", "F3", "Y")
     print(test_play_b)
-    print(WS.find_execution(test_play_b))
+    # print(WS.find_execution(test_play_b))
+    print(test_play_b.find_execution())
     L.execute_play(test_play_b)
     Display.print_board()
 
@@ -388,11 +392,11 @@ def play_creating():
     # rack = S.get_rack()
     # print("Rack:", rack)
     # L.set_letter_to_position("E", "H8")
-    # test_play_a = WS.create_play("TEE", "G8", "x")
+    # test_play_a = D.Play("TEE", "G8", "x")
     # print(test_play_a)
     # # print(WS.find_execution(test_play_a))
     #
-    # test_play_b = WS.create_play("TEE", "F8", "x")
+    # test_play_b = D.Play("TEE", "F8", "x")
     # print(test_play_b)
 
     # placeable_suggestions = []
@@ -422,7 +426,7 @@ def play_creating():
     #                 placeable_suggestions.append(suggestion)
     #
     # for current_suggestion in placeable_suggestions:
-    #     possible_plays.append(WS.create_play(d_word=current_suggestion))
+    #     possible_plays.append(D.Play(d_word=current_suggestion))
     #
     # sorted_plays = sorted(possible_plays,
     #                       key=operator.attrgetter('score'),
@@ -503,30 +507,30 @@ def entire_turn():
 def position_finding():
     S.reset()
     S.set_rack("ERNSTL?")
-    test_play_open = WS.create_play("LÜSTERN", "G8", "X")
+    test_play_open = D.Play("LÜSTERN", "G8", "X")
     L.execute_play(test_play_open)
     S.increase_turn()
     Display.print_board()
 
     S.set_rack("BEDARF")
-    test_play_perpendicular = WS.create_play("BEDARF,", "F3", "y")
+    test_play_perpendicular = D.Play("BEDARF,", "F3", "y")
     # also counts as extended, score for BEDARF and FLÜSTERN would be added
     L.execute_play(test_play_perpendicular)
     S.increase_turn()
     Display.print_board()
 
     S.set_rack("D")
-    test_play_extended = WS.create_play("FLÜSTERND", "F8", "x")
+    test_play_extended = D.Play("FLÜSTERND", "F8", "x")
     L.execute_play(test_play_extended)
 
     S.set_rack("RETEN")
-    test_play_retten = WS.create_play("RETTEN", "J5", "y")
+    test_play_retten = D.Play("RETTEN", "J5", "y")
     L.execute_play(test_play_retten)
     S.increase_turn()
     Display.print_board()
 
     S.set_rack("USTRN")
-    test_play_merge = WS.create_play("AUSTERN", "F6", "x")
+    test_play_merge = D.Play("AUSTERN", "F6", "x")
     # this only counts as AUSTERN, since it  doesn't extend any existing words
     L.execute_play(test_play_merge)
     S.increase_turn()
@@ -577,7 +581,7 @@ def word_finding_by_entire_word():
 
 def area_finding():
     S.set_rack("ERNSTL?")
-    test_play_open = WS.create_play("LÜSTERN", "G8", "X")
+    test_play_open = D.Play("LÜSTERN", "G8", "X")
     L.execute_play(test_play_open)
     S.increase_turn()
     Display.print_board()
@@ -599,30 +603,68 @@ def play_finding_by_position():
     # gets points for the 2 plays it extends.
     # (DERBE, E5, X) and (FL?STERN, E8, X)
 
+    # Start by setting LÜSTERN
     S.set_rack("ERNSTL?")
-    test_play_open = WS.create_play("LÜSTERN", "G8", "X")
+    test_play_open = D.Play("LÜSTERN", "G8", "X")
     L.execute_play(test_play_open)
     S.increase_turn()
     Display.print_board()
 
+    # Set BORSTE
     S.set_rack("BORTE")
-    test_play_borste = WS.create_play("BORSTE", "I5", "Y")
+    test_play_borste = D.Play("BORSTE", "I5", "Y")
     L.execute_play(test_play_borste)
     S.increase_turn()
     Display.print_board()
 
+    # Set ERBE
     S.set_rack("ERE")
-    test_play_erbe = WS.create_play("ERBE", "G5", "X")
+    test_play_erbe = D.Play("ERBE", "G5", "X")
     L.execute_play(test_play_erbe)
     S.increase_turn()
     Display.print_board()
 
-    # found_play = WL.find_play_by_position("G8")
+    # found_play = WL.find_active_play_by_position("G8")
     # print(found_play)
+    # Find BEDARF,
+    # Extends ERBE to DERBE
+    # Extends LÜSTERN to FLÜSTERN
+    # mark both extended-plays as "active" in the WordLog.
+    # mark ERBE and LÜSTERN
 
     S.set_rack("BEDARF")
     test_area_bedarf = D.Area("F3", "F8")
     # empty_area_with_no_neighbors = D.Area("D3", "D8")
+
+    # Works.
+    bedarf_turn = Game.SubTurn(test_area_bedarf.position_list)
+    L.execute_play(bedarf_turn.highest_scoring_play)
+    S.increase_turn()
+    S.set_rack("VERNDE")
+    Display.print_board()
+    # Works.
+    area_verderbende = D.Area("A5", "O5")
+    verderbende_turn = Game.SubTurn(area_verderbende.position_list)
+    L.execute_play(verderbende_turn.highest_scoring_play)
+    S.increase_turn()
+    Display.print_board()
+
+    S.set_rack("ZIERENDE")
+    area_extends_right = D.Area("N1", "N15")
+    extends_right_turn = Game.SubTurn(area_extends_right.position_list)
+
+    print("highest scoring play:")
+    pprint.pprint(extends_right_turn.highest_scoring_play)
+    L.execute_play(extends_right_turn.highest_scoring_play)
+    S.increase_turn()
+    Display.print_board()
+
+    # active_plays = WL.get_active_plays()
+    # pprint.pprint(active_plays)
+    # print("Length of active plays:", len(active_plays))
+    #
+    # print("All plays of extends_right_turn")
+    # pprint.pprint(extends_right_turn.possible_plays)
 
 
     # for position in test_area_bedarf.neighbors:
@@ -636,63 +678,45 @@ def play_finding_by_position():
     # print(test_area_flsternd.contested_plays)
     # TODO: the exact same play can be contested twice.
     #  -> identical play on 2 different positions
-    #
-    # TODO: FLÜSTERND should be an available play from F8 to N8
 
-    # the neighbors only need to be checked if area and play
-    # are on different axes.
-
-    # print("extension_crossover_positions for FLÜSTERND:", test_area_flsternd.extension_crossover_positions)
-    # for position in test_area_flsternd.neighbors:
-    #     L.set_letter_to_position(".", position)
-    # Display.print_board()
-
-    # print("extendable positions for LÜSTERN (already on the board:")
-    # area_lsternd = D.Area("G8", "M8")
-    # print(area_lsternd.extension_crossover_positions)
-
-    # plays_for_lstrnd = WS.find_plays_for_area(area_lsternd)
-    # print(plays_for_lstrnd)
-    # test_area_b = D.Area("B3", "B8")
-    # for position in test_area_bedarf.neighbors:
-    #     L.set_letter_to_position(".", position)
-    # Display.print_board()
-
-    # print("contested_plays for BEDARF:", test_area_bedarf.contested_plays)
-    # print("-"*30)
-    # print("contested at:", test_area_bedarf.contested_at)
-    # print("contested play(s):")
-    # print(test_area_bedarf.contested_plays)
-    # print("DEBUG: available for empty_area (D3 to D8):")
-    # print(WS.find_plays_for_area(empty_area_with_no_neighbors))
-
-    available_for_area = WS.find_plays_for_area(test_area_bedarf)
-    # TODO: placing letters on the temporary board or executing a temprary play
-    # doesn't touch the rack.
-
-    # TODO DEBUG: a sub-play (one thats extended when a play is made) doesn't need
-    # its execution checked.
-
-    # TODO: typing for plays
-    # TODO: DEBUG - bonus scores somehow stack on top of each other
-
-    # print("plays available for test_area_bedarf:")
-    # print(available_for_area)
-    # print("\n")
-    print("extension_crossover_positions for BEDARF:", test_area_bedarf.extension_crossover_positions)
+    S.set_rack("ERNSTZUNEHMEND")
+    area_non_continuous = D.Area("L1", "L15")
+    turn_non_continuous = Game.SubTurn(area_non_continuous.position_list)
+    print("Current Rack:", S.get_rack())
+    print("Plays possible on L1 to L15:")
+    pprint.pprint(turn_non_continuous.possible_plays)
 
 
-    # TODO:
-    # somewhat straightforward.
-    # make sure the SubTurn for the for BEDARF considers
-    # DERBE and FLÜSTERN as additional Plays and score those accordingly.
-        # if plays are extended, make sure the Log is updated.
-        # maybe a simple "active"-Boolean will do?
-    # TODO:
-    # less straightforward.
-    # BORSTE is a contesting play at FLÜSTERND (twice, even), but filled
-    # positions in an area dont need their neighbors checked.
-    # so: make sure get_neighbors skips filled positions.
+    # TODO, testing:
+    # select an area directly adjacent to an existing word, make sure all sub-plays are
+    # counted as well
+
+    # UR on E13-F13 should be possible
+    # Bonus: DU, E12-E13 // ER, F12-F13
+    S.set_rack("ERDE")
+    play_erde = D.Play("ERDE", "C12", "X")
+    L.execute_play(play_erde)
+
+
+    S.set_rack("AAABCDEEEFGHIIIJKLMNOOOPQRRRSSSSTUUUUVWXYZ")
+    Display.print_board()
+    parallel_area = D.Area("C13", "F13")
+    # testing __cmp__
+    affected_parallel_plays = parallel_area.contested_plays
+    print("affected_parallel plays:")
+    pprint.pprint(affected_parallel_plays)
+    affected_first = affected_parallel_plays[0]
+    affected_second = affected_parallel_plays.pop(-1)
+    print("both plays are identical:", affected_first == affected_second)
+    print("affected_second is IN affected parallel plays:", affected_second in affected_parallel_plays)
+
+
+
+    parallel_subturn = Game.SubTurn(parallel_area.position_list)
+    print("highest scoring play:")
+    pprint.pprint(parallel_subturn.highest_scoring_play)
+    print("Plays possible on C13 to F13:")
+    pprint.pprint(parallel_subturn.possible_plays)
 
     # TODO, for Testing.:
     # create a situation on the board where the entire rack is played,
@@ -703,13 +727,72 @@ def play_finding_by_position():
     # needs: a function to reserve letters from the rack,
     # the word_search by regex,
 
-# test_all()
-# word_search()
-# rack_simple()
-# rack_complete()
-# entire_turn()
-# play_creating()
-# word_finding_by_entire_word()
-# position_finding()
-# area_finding()
+
+
+def log_searching():
+    S.reset()
+    # finding the plays.
+    S.set_rack("ERNSTLÜ")
+    play_lustern = D.Play("LÜSTERN", "G8", "X")
+    L.execute_play(play_lustern)
+    S.increase_turn()
+    #Display.print_board()
+
+    # Set BORSTE
+    S.set_rack("BORTE")
+    play_borste = D.Play("BORSTE", "I5", "Y")
+    L.execute_play(play_borste)
+    S.increase_turn()
+    #Display.print_board()
+
+    # Set ERBE
+    S.set_rack("ERE")
+    play_erbe = D.Play("ERBE", "G5", "X")
+    L.execute_play(play_erbe)
+    S.increase_turn()
+    #Display.print_board()
+
+    # found_play = WL.find_active_play_by_position("G8")
+    # print(found_play)
+    # Find BEDARF,
+    # Extends ERBE to DERBE
+    # Extends LÜSTERN to FLÜSTERN
+    # mark both extended-plays as "active" in the WordLog.
+    # mark ERBE and LÜSTERN
+    S.set_rack("BEDARF")
+    test_area_bedarf = D.Area("F3", "F8")
+    bedarf_turn = Game.SubTurn(test_area_bedarf.position_list)
+    L.execute_play(bedarf_turn.highest_scoring_play)
+    S.increase_turn()
+    Display.print_board()
+
+
+    print("All Plays:")
+    all_plays = WL.read_log()
+    pprint.pprint(all_plays)
+    print("Length of all plays:", len(all_plays))
+
+    print("updating to only active plays")
+    WL.deactivate_extended_plays()
+
+    print("Only the active plays:")
+    active_plays = WL.get_active_plays()
+    pprint.pprint(active_plays)
+    print("Length of active plays:", len(active_plays))
+    # test passes if the active plays are:
+    # FLÜSTERN, DERBE, BORSTE and BEDARF
+
+
+def test_all():
+    word_search()
+    rack_simple()
+    rack_complete()
+    play_creating()
+    entire_turn()
+    position_finding()
+    word_finding_by_entire_word()
+    area_finding()
+    play_finding_by_position()
+    log_searching()
+
 play_finding_by_position()
