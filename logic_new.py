@@ -455,7 +455,15 @@ class Datatypes:
             self.position = position
             self.axis = axis
             self.end = Logic.get_end_position(word, position, axis)
-            self.used_positions = Logic.convert_positions_to_list(self.position, self.end)
+            if self.end is None:
+                self.used_positions = []
+                self.execution = []
+            else:
+                self.used_positions = Logic.convert_positions_to_list(self.position,
+                                                                      self.end)
+                self.execution = [(letter, ex_position)
+                                  for letter, ex_position
+                                  in zip(self.used_positions, self.word)]
 
         def __repr__(self):
             return f"<{self.word}, {self.position}, {self.axis}>"
@@ -496,7 +504,7 @@ class Datatypes:
             self.update_total_score()
             # self.non_empty_tuple = []
 
-        def __cmp__(self, other):
+        def __cmp__(self, other) -> bool:
             if isinstance(other, Datatypes.Play) is False:
                 return False
             else:
@@ -506,6 +514,8 @@ class Datatypes:
                 same_word = self.word == other.word
                 if same_axis and same_start and same_end and same_word:
                     return True
+                else:
+                    return False
 
         def set_inactive(self):
             self.active = False
@@ -519,8 +529,6 @@ class Datatypes:
                 # new_score = old_score + extension_play.score_basic
                 # self.score_bonus = new_score
                 self.update_total_score()
-            # clean version:
-            #
 
         def update_total_score(self):
             if self.type == "extension":
@@ -594,7 +602,6 @@ class Datatypes:
                      position_list: list = None,
                      rack: Union[str, list] = None):
 
-
             if rack is None:
                 self.rack = Settings.get_rack()
             else:
@@ -612,7 +619,7 @@ class Datatypes:
                 self.axis = Logic.get_axis(self.start, self.end)
 
             both_axes = {"x", "y"}
-            self.opposite_axis = both_axes.difference(set(self.axis))
+            self.opposite_axis = both_axes.difference(set(self.axis)).pop()
 
             print(f"Area from {self.start} to {self.end}:")
             self.non_empty_positions, \
@@ -633,29 +640,44 @@ class Datatypes:
 
             self.neighbors = self.get_area_neighbors()
             # print("neighbors:", self.neighbors)
-            self.contested_at = self.get_occupied_neighbors()
+            self.occupied_neighbors = self.get_occupied_neighbors()
             # print("contested at these positions:", self.contested_at)
             # self.contested_plays = [WordLog.find_active_play_by_position(contested_pos)
             #                         for contested_pos
             #                         in self.contested_at]
-            self.contested_plays = WordLog.find_active_play_by_position(self.contested_at)
+            self.contested_plays = WordLog.find_active_play_by_position(self.occupied_neighbors)
             # convert contested_at to position-lists
+            self.contested_areas = self.get_contested_position_lists()
 
-
-            print("contested plays:")
-            pprint.pprint(self.contested_plays, indent=2)
+            # print("contested plays:")
+            # pprint.pprint(self.contested_plays)
             # the name is confusing.
             self.extension_crossover_positions = self.get_extension_crossovers()
 
+        def get_contested_position_lists(self) -> list:
+            if len(self.occupied_neighbors) != len(self.contested_plays):
+                # TODO: convert contested_at to position_lists:
+                # Move this to __init__
+                contested_areas = []
+                for c_play in self.contested_plays:
+                    combined_positions = []
+                    for c_position in self.occupied_neighbors:
+                        if c_position in c_play.used_positions:
+                            combined_positions.append(c_position)
+                    sorted_areas = Logic.sort_position_list(contested_areas,
+                                                            self.axis)
+                    contested_areas.append(sorted_areas)
+                return contested_areas
+            else:
+                return self.occupied_neighbors
+
         def get_extension_crossovers(self) -> list:
             # compares the given position_list with any contested plays
-            if len(self.contested_at) == 0:
+            if len(self.contested_areas) == 0:
                 return []
             else:
                 result_list = []
-                if len(self.contested_at) != len(self.contested_plays):
-                    raise ValueError("contested_plays and contested_at have different lengths.")
-                for contest_position, contest_play in zip(self.contested_at,
+                for contest_pos_list, contest_play in zip(self.contested_areas,
                                                           self.contested_plays):
                     extension_set = set(contest_play.extendable_at)
                     area_position_set = set(self.position_list)
@@ -1572,6 +1594,35 @@ class Logic:
                                          is_temporary)
 
     @staticmethod
+    def read_on_position(position: str,
+                         axis: str,
+                         is_temporary: bool = False) -> str:
+
+        # Guard Clause: position must be filled
+        if Checks.is_position_empty(position) is True:
+            return ""
+
+        bottom = position
+        ceiling = position
+        bottom_found = False
+        ceiling_found = False
+        # find the bottom position
+        while bottom_found is False:
+            checking_position = Logic.modify_position_by_axis(bottom, -1, axis)
+            if checking_position is None or Checks.is_position_empty(checking_position) is True:
+                bottom_found = True
+            bottom = checking_position
+        while ceiling_found is False:
+            checking_position = Logic.modify_position_by_axis(ceiling, +1, axis)
+            if checking_position is None or Checks.is_position_empty(checking_position) is True:
+                ceiling_found = True
+            ceiling = checking_position
+        # find the ceiling position
+        # read the word from bottom to ceiling
+        result_string = Logic.get_word_from_position(bottom, ceiling, is_temporary)
+        return result_string
+
+    @staticmethod
     def get_word_multiplier(start_position: str,
                             end_position: str = None,
                             is_temporary: bool = False) -> int:
@@ -2048,23 +2099,59 @@ class WordSearch:
     def find_placeable_words(area: Datatypes.Area,
                              word_list: list) -> list:
         # TODO: requires cleanup (extract functions), this is heavily nested.
+        # idea: this function needs to cover all scenarios:
+        # first turn,
+        # extension along axis (via area.crossover),
+        # words along opposite axis
 
         result_list = []
 
         for current_word in word_list:
             all_starting_positions = WordSearch.find_starting_position(current_word,
                                                                        area)
-            # print(f"starting positions for {current_word}", starting_positions)
+            print(f"starting positions for {current_word}", all_starting_positions)
             if len(all_starting_positions) > 0:
                 for starting_position in all_starting_positions:
                     suggestion = Datatypes.Suggestion(current_word,
                                                       starting_position,
                                                       area.axis)
-                    if (Checks.is_first_turn() is False) \
-                            and (len(area.non_empty_positions) == 0):
-                        if Checks.is_any_element_in_list(area.extension_crossover_positions,
-                                                         suggestion.used_positions) is False:
+
+                    is_not_first_turn = Checks.is_first_turn() is False
+                    area_is_empty = len(area.non_empty_positions) == 0
+
+                    print("is not first turn:", is_not_first_turn)
+                    print("target area is empty:", area_is_empty)
+
+                    # EXTRACT TO FUNCTION
+                    if is_not_first_turn and area_is_empty:
+                        print("it's not the first turn and the area is empty.")
+                        extends_along_axis = (Checks.is_any_element_in_list(
+                            area.extension_crossover_positions,
+                            suggestion.used_positions) is False)
+                        print("extends_along_axis:", extends_along_axis)
+                        # the line below would belong in an else-block of this.
+                        # extends_words_on_opposite_axis = False
+
+                        if extends_along_axis is False:
+                            print("Suggestion does not extend along its own axis.")
+                            # TODO: EXTRACT FUNCTION!
+                            for suggest_position, suggest_letter in suggestion.execution:
+                                raw_word = Logic.read_on_position(suggest_position, area.opposite_axis)
+                                print(f"reading on opposite axis {area.opposite_axis}, position {suggest_position}:")
+                                print(raw_word)
+                                if Checks.is_word_in_dictionary(raw_word) is False:
+                                    print("that word does NOT exist, breaking...")
+                                    break
+                                else:
+                                    print("that word exists.")
+                                    # grab the neighbors for each position, see if the word
+                                    # along the opposite axis exists.
                             continue
+                            # Figure out the edge-case (or the other axis.)
+                        else:
+                            #
+                            pass
+                        # EXTRACTION END
 
                     if Checks.is_word_placeable(suggestion):
                         # print(f"{current_word} on {starting_position} along {area.axis} is placeable.")
@@ -2125,7 +2212,6 @@ class WordSearch:
             # find the affected play by extension_position
             affected_plays = WordLog.find_active_play_by_extension_position(affected_position)
             for play_to_extend in affected_plays:
-                create_play = False
 
                 (extension_start,
                  extension_end) = WordSearch.find_endpoints_of_crossovers(affected_position,
@@ -2148,6 +2234,7 @@ class WordSearch:
                         create_play = True
                     else:
                         non_existing_words.append(new_temporary_word)
+                        create_play = False
                         continue
 
                 if create_play is True:
@@ -2168,7 +2255,19 @@ class WordSearch:
         return result_list
 
     @staticmethod
+    def find_parallel_plays(area: Datatypes.Area,
+                            ):
+        # goal of this function:
+        # WordSearch.find_placeable_words()
+        # and Datatypes.Word.find_bonus_plays() should access this
+        # in both cases, this returns the Result from placing a word in an Area.
+        # ERDE on G8, URNE on rack:
+        # <URNE, I9, X + Bonus from DU and UR>
+        pass
+
+    @staticmethod
     def find_plays_for_area(area: Datatypes.Area) -> list:
+        print("find_plays_for_area")
         result_list = []
 
         words = WordSearch.create_words(area)
@@ -2178,7 +2277,10 @@ class WordSearch:
         all_placeable_words = WordSearch.find_placeable_words(area, words)
 
         if len(area.extension_crossover_positions) == 0:
-            # print("no extension crossovers.")
+            print("no extension crossovers.")
+            print(f"placeable words ({len(all_placeable_words)} total):")
+            pprint.pprint(all_placeable_words)
+
             for placeable_word in all_placeable_words:
                 play = Datatypes.Play(placeable_word.word,
                                       placeable_word.position,
@@ -2187,13 +2289,17 @@ class WordSearch:
                 # check for busy neighbors and create bonus plays for existing
                 # valid words,
                 ## TODO: EXTRACT FUNCTION
-                affected_neighbors = list(set(play.used_positions).intersection(set(area.neighbors)))
+                affected_neighbors = list(set(play.used_positions).intersection(set(area.occupied_neighbors)))
                 # select the play(s) by used position
                 # (return muliple plays in a list if the given position is a list)
+                print("affected_neighbors", affected_neighbors)
                 affected_plays = WordLog.find_active_play_by_position(affected_neighbors)
+
+                # for every affected position, check if there's a valid word on the opposite axis
+                #
                 result_list.append(play)
         else:
-            # print("extension crossovers exist.")
+            print("extension crossovers exist.")
             # complex, but more accurate:
             # iterate over the contested positions
             # figure out how what letters can extend the existing play
@@ -2208,6 +2314,7 @@ class WordSearch:
 
                 extension_plays = WordSearch.find_extension_plays(area, current_suggestion)
                 crossover_positions = WordSearch.find_affected_crossovers(area, current_suggestion)
+                parallel_plays = WordSearch.find_parallel_plays()
 
                 if Checks.is_number_of_sub_plays_valid(extension_plays,
                                                        crossover_positions):
@@ -2384,7 +2491,6 @@ class WordSearch:
         second_set = set(Settings.GAME_SETTINGS['words'][length][second_letter])
         combined_set = first_set.intersection(second_set)
         return list(combined_set)
-
 
     @staticmethod
     def word_list_by_word(word: str,

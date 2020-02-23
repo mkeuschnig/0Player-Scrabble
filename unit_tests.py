@@ -698,19 +698,12 @@ def play_finding_by_position():
     L.execute_play(play_erde)
 
 
-    S.set_rack("AAABCDEEEFGHIIIJKLMNOOOPQRRRSSSSTUUUUVWXYZ")
+    S.set_rack("URNE")
     Display.print_board()
-    parallel_area = D.Area("C13", "F13")
-    # testing __cmp__
+    parallel_area = D.Area("C13", "H13")
     affected_parallel_plays = parallel_area.contested_plays
     print("affected_parallel plays:")
     pprint.pprint(affected_parallel_plays)
-    affected_first = affected_parallel_plays[0]
-    affected_second = affected_parallel_plays.pop(-1)
-    print("both plays are identical:", affected_first == affected_second)
-    print("affected_second is IN affected parallel plays:", affected_second in affected_parallel_plays)
-
-
 
     parallel_subturn = Game.SubTurn(parallel_area.position_list)
     print("highest scoring play:")
@@ -726,6 +719,39 @@ def play_finding_by_position():
     # try to find the extensions first, then fill the area via regex-words.
     # needs: a function to reserve letters from the rack,
     # the word_search by regex,
+
+def play_finding_parallel():
+    S.reset()
+    S.set_rack("ERDE")
+    play_erde = D.Play("ERDE", "G8", "X")
+    L.execute_play(play_erde)
+    S.increase_turn()
+
+    S.set_rack("URNE")
+    Display.print_board()
+    parallel_area = D.Area("I9", "L9")
+    affected_parallel_plays = parallel_area.contested_plays
+    print("affected_parallel plays:")
+    pprint.pprint(affected_parallel_plays)
+
+    parallel_subturn = Game.SubTurn(parallel_area.position_list)
+    print("highest scoring play:")
+    pprint.pprint(parallel_subturn.highest_scoring_play)
+    print("Plays possible on I9 to L9:")
+    pprint.pprint(parallel_subturn.possible_plays)
+    #TODO: finish. Passes if DU and UR are parallel bonus-plays.
+
+
+def read_from_position():
+    S.reset()
+    S.set_rack("ERDE")
+    play_erde = D.Play("ERDE", "G8", "X")
+    L.execute_play(play_erde)
+
+    reader_word = L.read_on_position("G8", "X")
+    print("reader_word", reader_word)
+    print("word equals the word in the previous play:", reader_word == play_erde.word)
+
 
 
 
@@ -795,4 +821,5 @@ def test_all():
     play_finding_by_position()
     log_searching()
 
-play_finding_by_position()
+play_finding_parallel()
+# read_from_position()
