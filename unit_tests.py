@@ -1,21 +1,19 @@
 # import checks as C
 # import logic as L
 # import settings as S
-from random import randint
 
 import pprint
-import operator
+from copy import deepcopy
 
-from logic_new import Display
-from logic_new import Datatypes as D
-from logic_new import Settings as S
-from logic_new import Logic as L
 from logic_new import Checks as C
+from logic_new import Datatypes as D
+from logic_new import Display
 from logic_new import Game
-from logic_new import WordSearch as WS
-from logic_new import WordLog as WL
+from logic_new import Logic as L
 from logic_new import Scratch
-
+from logic_new import Settings as S
+from logic_new import WordLog as WL
+from logic_new import WordSearch as WS
 
 gameSettings = S.get_game_settings()
 S.set_game_settings(settings=gameSettings)
@@ -322,6 +320,7 @@ def word_search():
     #                                                      stupid_range.axis,
     #                                                      []))
     # print(startingPositions)
+    print("PASSED.")
     return
 
 
@@ -332,6 +331,7 @@ def rack_simple():
     print("rack after reset:", rack)
     S.fill_rack()
     print("rack after fill_rack, without re-assignment:", rack)
+    print("PASSED.")
     return
 
 
@@ -349,6 +349,7 @@ def rack_complete():
         S.set_rack("")
     print("total letters drawn:", len(letters_drawn))
     print("in order:", letters_drawn)
+    print("PASSED.")
 
 
 def play_creating():
@@ -434,53 +435,161 @@ def play_creating():
     # highest_scoring_play = sorted_plays[0]
     # print("highest scoring play:")
     # print(highest_scoring_play)
+    print("PASSED.")
 
 
-def entire_turn():
+def finding_usable_positions():
+    S.reset()
+    S.set_rack("BEDARF")
+    test_play_b = D.Play("BEDARF", "M3", "Y")
+    print(test_play_b)
+    # print(WS.find_execution(test_play_b))
+    print(test_play_b.find_execution())
+    L.execute_play(test_play_b)
+    S.increase_turn()
+
+    Display.print_board()
+    S.set_rack("BEDARF")
+    test_area = D.Area(position_list=WS.find_usable_positions("M3", "x"))
+    starting_positions = WS.find_starting_position("FADER", test_area)
+    print("starting positions for FARBE on M3, X:")
+    print(starting_positions)
+
+
+def first_turn():
+    S.reset()
+    S.set_rack("ERNSTLU?")
+
+    filled_positions = []
+    usable_positions = WS.find_usable_positions("H8", "x")
+    print("Usable positions:")
+    first_area = D.Area(position_list=usable_positions)
+    starting_positions = WS.find_starting_position("STRUDELN", first_area)
+    print("starting positions for STRUDELN:")
+    print(starting_positions)
+    Display.print_board()
+
+    print("Subturn in Turn 1:")
+    first_subturn = Game.SubTurn(first_area)
+    highest_play = first_subturn.highest_scoring_play
+    L.execute_play(highest_play)
+    Display.print_board()
+    # all_plays = WS.find_plays_for_area(first_area)
+
+    # pprint.pprint(all_plays)
+
+
+def area_find_occupied_neighbors():
+    S.reset()
+    S.set_rack("STRUDELN")
+    first_play = D.Play("STRUDELN", "F8", "x")
+    L.execute_play(first_play)
+    S.increase_turn()
+
+    S.set_rack("FARBE")
+    second_play = D.Play("FARBEN", "M3", "y")
+    L.execute_play(second_play)
+    S.increase_turn()
+
+    S.set_rack("BEDARF")
+    Display.print_board()
+    subturn_area = D.Area("L2", "L14")
+    subturn_to_solve = Game.SubTurn(subturn_area)
+    pprint.pprint(subturn_to_solve.possible_plays)
+
+
+def entire_turn(number_of_turns: int = 5):
+    # TODO: DEBUG A WHOLE LOT
+    # BUG: # considers FARBEN a proper play on M2, y
+    # only FARBE gets planted.
+    # if there's no letter on the rack, it's still trying to find a valid play.
+    # TODO: Add checks to ensure at least one Rack-letter must be used.
+    # BUG: "FABEL" on L4-L8 is considered the best play on Turn 3 in this setup.
+    # The available Area is F8 to F14...
+    # Also doesn't check for bonus-plays
+    # which would need to be: FA, AR, BB, and EE
+
+    # tested in debugger:
+    # expected
+    # [STRUDELN                    F8-M8:x         score:20(20+0)      ,
+    #  FARBEN                      M3-M8:y         score:24(24+0)      ,
+    #  BEDARF                      K7-K12:y        score:22(22+0)      ,
+    #  RAFFE                       H12-L12:x       score:24(24+0)      ,
+    #  BEDARF                      I5-N5:x         score:22(22+0)      ]
+
     S.reset()
     # S.fill_rack()
     turn_number = S.GAME_SETTINGS['turn']
-    S.set_rack("ERNSTLU?")
-    # ERNSTLU? finds LÜSTERN the highest scoring play.
-    # Joker-Letter would be Ü
-    # should display as L(Ü)STERN
+    all_turns = []
 
-    while turn_number < 3:
+    while turn_number < number_of_turns:
+        # TODO: finally make Game_settings a proper Object
+        turn_number = S.GAME_SETTINGS['turn']
+        if C.is_first_turn() is True:
+            S.set_rack("ERNSTLU?")
+        else:
+            S.set_rack("BEDARF")
         print(f"  Turn No.: {turn_number}  ".center(80, "-"))
         Display.print_board()
+        # input()
 
         # prepare the result-lists
         # placeable_suggestions = []
         # possible_plays = []
 
-        if C.is_first_turn() is True:
-            print("It's the first turn.")
-            center = L.get_center_of_board()
-            # the board is symmetrical, might as well start on the x-axis
-            # find the usable area (x-axis along the center)
+        # if C.is_first_turn() is True:
+        #     print("It's the first turn.")
+        #     S.set_rack("ERNSTLU?")
+        #     Display.print_board()
+        #     debug_first_turn = Game.Turn(None, S.get_rack())
+        #     # print("Best turn:")
+        #     # input("Press Enter to execute the highest scoring play from this turn...")
+        #     L.execute_play(debug_first_turn.highest_scoring_play)
+        #     # print(testing_first_turn.highest_scoring_play)
+        #     # center = L.get_center_of_board()
+        #     # the board is symmetrical, might as well start on the x-axis
+        #     # find the usable area (x-axis along the center)
+        #
+        #     # usable_positions = WS.find_usable_positions(center, "x")
+        #     # usable_area = D.Area(position_list=usable_positions)
+        #     # convert to search parameters
+        #     # find words according to those parameters
+        #
+        #     # first_subturn = Game.SubTurn(usable_positions)
+        #     # possible_words = WS.create_words(usable_area)
+        #
+        #     # L.execute_play(first_subturn.highest_scoring_play)
+        # else:
+        #     print("Current turn:", turn_number)
+        #     # possible_plays = []
+        #     turn = Game.Turn(None, S.get_rack())
+        #     all_turns.append(turn)
+        #     # input("Press Enter to execute the highest scoring play from this turn...")
+        #     L.execute_play(turn.highest_scoring_play)
+        #     # TODO: encapsulate creating a Turn.
+        #     # creating a turn requires:
+        #     # the board state (the already placed words), the rack
+        #     # the
+        #
+        #     # possible_plays = WS.find_all_plays()
+        #     # raise NotImplementedError("NYI")
+        #     # pass
 
-            usable_positions = WS.find_usable_positions(center, "x")
-            # usable_area = D.Area(position_list=usable_positions)
-            # convert to search parameters
-            # find words according to those parameters
+        # print("Current turn:", turn_number)
+        # possible_plays = []
+        turn = Game.Turn(None, S.get_rack())
+        all_turns.append(turn)
+        # input("Press Enter to execute the highest scoring play from this turn...")
+        L.execute_play(turn.highest_scoring_play)
 
-            first_subturn = Game.SubTurn(usable_positions)
-            # possible_words = WS.create_words(usable_area)
+        # TODO: encapsulate creating a Turn.
+        # creating a turn requires:
+        # the board state (the already placed words), the rack
+        # the
 
-            L.execute_play(first_subturn.highest_scoring_play)
-        else:
-            print("It's the second turn.")
-            possible_plays = []
-            S.set_rack("BEDARF")
-            # TODO: encapsulate creating a Turn.
-            # creating a turn requires:
-            # the board state (the already placed words), the rack
-            # the search-parameters
-
-            # possible_plays = WS.find_all_plays()
-            S.increase_turn()
-            raise NotImplementedError("NYI")
-            pass
+        # possible_plays = WS.find_all_plays()
+        # raise NotImplementedError("NYI")
+        # pass
 
         # if len(possible_plays) == 0:
         #     raise NotImplementedError("NYI. There's no available Play. Swap out some letters.")
@@ -496,12 +605,15 @@ def entire_turn():
         # print("lowest scoring play:")
         # print(lowest_scoring)
 
-
         # Display.print_board()
 
         print("  End of turn.  ".center(80, "-"))
-        S.fill_rack()
+        # S.fill_rack()
         S.increase_turn()
+
+        Display.print_board()
+        pprint.pprint(WL.get_active_plays())
+        print("PASSED.")
 
 
 def position_finding():
@@ -542,14 +654,14 @@ def position_finding():
     # types of plays:
     # open - ruler finds no fixed positions, except for the origin
     # also, all neighbors are open positions
-        # example: LÜSTERN, G8, x
+    # example: LÜSTERN, G8, x
     # extended - ruler goes along a placed word to find letters to extend
     # in the same direction
-        # example: LÜSTERND, G8, x
+    # example: LÜSTERND, G8, x
     # perpendicular - ruler finds a single letter to extend and places a word
     # along the perpendicular axis.
-        # example: BEDARF, F3, y
-        # extends LÜSTERND to FLÜSTERND
+    # example: BEDARF, F3, y
+    # extends LÜSTERND to FLÜSTERND
     # merging - ruler finds gaps with busy positions, tries to find a fitting
     # word to fill the gap
 
@@ -558,6 +670,7 @@ def position_finding():
     # make plays according to the areas
 
     # TODO: Extend Area to consider its neighbors
+    print("PASSED.")
 
 
 def word_finding_by_entire_word():
@@ -597,6 +710,8 @@ def area_finding():
         possible_plays.append(sub_turn.highest_scoring_play)
 
     print(possible_plays)
+    print("PASSED.")
+
 
 def play_finding_by_position():
     # This passes when the play BEDARF, F3, Y
@@ -666,7 +781,6 @@ def play_finding_by_position():
     # print("All plays of extends_right_turn")
     # pprint.pprint(extends_right_turn.possible_plays)
 
-
     # for position in test_area_bedarf.neighbors:
     #     L.set_letter_to_position(".", position)
     # Display.print_board()
@@ -686,7 +800,6 @@ def play_finding_by_position():
     print("Plays possible on L1 to L15:")
     pprint.pprint(turn_non_continuous.possible_plays)
 
-
     # TODO, testing:
     # select an area directly adjacent to an existing word, make sure all sub-plays are
     # counted as well
@@ -696,7 +809,7 @@ def play_finding_by_position():
     S.set_rack("ERDE")
     play_erde = D.Play("ERDE", "C12", "X")
     L.execute_play(play_erde)
-
+    S.increase_turn()
 
     S.set_rack("URNE")
     Display.print_board()
@@ -719,8 +832,12 @@ def play_finding_by_position():
     # try to find the extensions first, then fill the area via regex-words.
     # needs: a function to reserve letters from the rack,
     # the word_search by regex,
+    print("PASSED.")
+
 
 def play_finding_parallel():
+    # Passes.
+
     S.reset()
     S.set_rack("ERDE")
     play_erde = D.Play("ERDE", "G8", "X")
@@ -739,7 +856,45 @@ def play_finding_parallel():
     pprint.pprint(parallel_subturn.highest_scoring_play)
     print("Plays possible on I9 to L9:")
     pprint.pprint(parallel_subturn.possible_plays)
-    #TODO: finish. Passes if DU and UR are parallel bonus-plays.
+    print("PASSED.")
+
+
+def play_finding_multiple():
+    S.reset()
+    S.set_rack("ERDE")
+    play_erde = D.Play("ERDE", "G8", "X")
+    L.execute_play(play_erde)
+    S.increase_turn()
+
+    S.set_rack("DEN")
+    area_den = D.Area("K6", "K8")
+    subturn_den = Game.SubTurn(area_den.position_list)
+    # play_den = D.Play("DEN", "K6", "Y")
+    L.execute_play(subturn_den.highest_scoring_play)
+    S.increase_turn()
+
+    S.set_rack("URNE")
+    Display.print_board()
+    parallel_area = D.Area("I9", "L9")
+    affected_parallel_plays = parallel_area.contested_plays
+    print("affected_parallel plays:")
+    pprint.pprint(affected_parallel_plays)
+
+    parallel_subturn = Game.SubTurn(parallel_area.position_list)
+    print("highest scoring play:")
+    # expected: Still URNE on I9, X
+    # bonus, DU, ER, DENN
+    pprint.pprint(parallel_subturn.highest_scoring_play)
+    print("Plays possible on I9 to L9:")
+    pprint.pprint(parallel_subturn.possible_plays)
+    # TODO: the master-test: a word that now has parallel AND extending plays.
+
+    # URNE                        I9-L9:x         score:22(5+17)
+    # >> +DENN                   K6-K9:Y         score:4
+    # >> +DU                     I7-I8:y         score:3
+    # >> +ER                     J7-J8:y         score:2
+    # >> +DENN                   K5-K8:y         score:8
+    print("PASSED.")
 
 
 def read_from_position():
@@ -748,11 +903,10 @@ def read_from_position():
     play_erde = D.Play("ERDE", "G8", "X")
     L.execute_play(play_erde)
 
-    reader_word = L.read_on_position("G8", "X")
+    reader_word = L.suggestion_from_position("G8", "X")
     print("reader_word", reader_word)
     print("word equals the word in the previous play:", reader_word == play_erde.word)
-
-
+    print("PASSED.")
 
 
 def log_searching():
@@ -762,21 +916,21 @@ def log_searching():
     play_lustern = D.Play("LÜSTERN", "G8", "X")
     L.execute_play(play_lustern)
     S.increase_turn()
-    #Display.print_board()
+    # Display.print_board()
 
     # Set BORSTE
     S.set_rack("BORTE")
     play_borste = D.Play("BORSTE", "I5", "Y")
     L.execute_play(play_borste)
     S.increase_turn()
-    #Display.print_board()
+    # Display.print_board()
 
     # Set ERBE
     S.set_rack("ERE")
     play_erbe = D.Play("ERBE", "G5", "X")
     L.execute_play(play_erbe)
     S.increase_turn()
-    #Display.print_board()
+    # Display.print_board()
 
     # found_play = WL.find_active_play_by_position("G8")
     # print(found_play)
@@ -792,7 +946,6 @@ def log_searching():
     S.increase_turn()
     Display.print_board()
 
-
     print("All Plays:")
     all_plays = WL.read_log()
     pprint.pprint(all_plays)
@@ -807,6 +960,107 @@ def log_searching():
     print("Length of active plays:", len(active_plays))
     # test passes if the active plays are:
     # FLÜSTERN, DERBE, BORSTE and BEDARF
+    print("PASSED.")
+
+
+def entire_game(is_automatic: bool = False,
+                always_ERNSTLUA: bool = False):
+    # emulate the turns, from start to empty bag.
+    # ask before executing a play whether it's correct,
+    # write "incorrect" plays to a list for debugging.
+    S.reset()
+    remaining_letters_initial = len(S.INITIAL_SETTINGS['bag'])
+    remaining_letters = deepcopy(remaining_letters_initial)
+    turn_number = S.GAME_SETTINGS['turn']
+    all_turns = []
+    incorrect_plays = []
+    game_score = 0
+    previous_best_play = None
+    current_rack = []
+
+    print("Number of Letters:", remaining_letters)
+
+    while remaining_letters > 0:
+
+        if always_ERNSTLUA is True:
+            num_letters_replaced = len("ERNSTLUA") - len(current_rack)
+            print("number of letters replaced:", num_letters_replaced)
+            S.set_rack("ERNSTLUA")
+            current_rack = S.get_rack()
+            remaining_letters = remaining_letters - num_letters_replaced
+            input()
+
+        else:
+            S.fill_rack()
+            current_rack = S.get_rack()
+            remaining_letters = len(S.GAME_SETTINGS['bag'])
+
+        highest_scoring_play = None
+        Display.print_board()
+        print(f"  Turn No.: {turn_number}  ".center(80, "-"))
+        Display.print_board()
+
+        # BUG: sometimes yields the same turn?
+        # see scatch.md
+
+        turn = Game.Turn(None, current_rack)
+        highest_scoring_play = turn.highest_scoring_play
+
+        print("Total possible Plays for this turn:")
+        pprint.pprint(turn.possible_plays)
+
+        Display.print_board()
+
+        print("The Highest scoring play is:".center(80))
+        pprint.pprint(highest_scoring_play)
+
+        # TODO: this never fires.
+        if previous_best_play is not None:
+            if highest_scoring_play == previous_best_play:
+                raise NotImplementedError("Previous Best Play is identical to the current best Play.")
+
+        if is_automatic is True:
+            answer = "y"
+        else:
+            answer = ""
+
+        while answer.casefold() not in ["y", "n"]:
+            if answer == "":
+                answer = input("Check against the board - is this play correct? [y/n]: >")
+            if len(answer) == 0:
+                continue
+            elif answer.casefold() == "n":
+                incorrect_plays.append(highest_scoring_play)
+                break
+            elif answer.casefold() == "y":
+                break
+
+        print("  End of turn.  ".center(80, "-"))
+        print("Remaining letters:", remaining_letters)
+        L.execute_play(highest_scoring_play)
+        previous_best_play = highest_scoring_play
+        game_score += highest_scoring_play.score_total
+        S.increase_turn()
+
+    print("Game has ended.")
+    print("Total score:", game_score)
+    print("Incorrect plays:")
+    pprint.pprint(incorrect_plays)
+
+    print("Play Log:")
+    pprint.pprint(WL.get_active_plays())
+
+
+def deterministic_outcome():
+    # emulate 2 games where the rack always stays the same.
+    # remaining log should be identical.
+    pass
+
+
+def find_empty_area_on_higher_turns():
+    # find_usable_areas should still find a area the length
+    # of position+(length_of_rack*2) on the given axis
+    pass
 
 
 def test_all():
@@ -814,12 +1068,23 @@ def test_all():
     rack_simple()
     rack_complete()
     play_creating()
+    finding_usable_positions()
+    first_turn()
     entire_turn()
     position_finding()
     word_finding_by_entire_word()
     area_finding()
     play_finding_by_position()
     log_searching()
+    play_finding_parallel()
+    read_from_position()
+    play_finding_multiple()
+    print("PASSED.")
 
-play_finding_parallel()
-# read_from_position()
+
+# Actual execution:
+# finding_usable_positions()
+# test_all
+# entire_turn(5)
+# area_find_occupied_neighbors()
+entire_game(always_ERNSTLUA=True, is_automatic=True)
