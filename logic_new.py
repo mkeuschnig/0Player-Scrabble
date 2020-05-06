@@ -1,14 +1,7 @@
-# TODO: rename to solver.py
-# TODO: "ER" is, strangely enough, not a word in german.txt
-# TODO: implement complex_plays
 # TODO: Cleanup. A whole lot.
 
-# TODO: Datatype.Play needs to know what rack-letters are used
-# TODO: also streamline a Turn - make that a datatype using the parameters
-# TODO: Datatype.Play needs to know what Jokers are used for.
-# TODO:
 
-
+import pprint
 import re
 import shelve
 from copy import deepcopy
@@ -17,12 +10,25 @@ from os import path
 from random import shuffle, choice
 from typing import Iterable
 from typing import Optional
+from typing import Type, TypeVar
 from typing import Union
 
 from math import floor
 
+Sug = TypeVar('Sug', bound='Datatypes.Suggestion')
 
-# from itertools import permutations
+# debug-printing
+verbose = True
+
+
+def verbose_prettyprint(*args, **kwargs):
+    if verbose is True:
+        pprint.pprint(*args, **kwargs)
+
+
+def verbose_print(*args, **kwargs):
+    if verbose is True:
+        print(*args, **kwargs)
 
 
 class Settings:
@@ -34,7 +40,7 @@ class Settings:
     # TODO: read user-definable settings from a file
     app_path = path.abspath(path.curdir)
 
-    searchPrecision = 0  # default: 100, 0 = search all.
+    # searchPrecision = 0  # default: 100, 0 = search all.
 
     # LANGUAGE AND LETTER DISTRIBUTION
     languages = {"german": "German",
@@ -274,8 +280,8 @@ class Settings:
 
         bag = Settings.create_bag(Settings.AMOUNT[mode_string][language_string])
         shuffle(bag)
-        # print("DEBUG: Bag is now...")
-        # print(bag)
+        verbose_print("DEBUG: Bag is now...")
+        verbose_print(bag)
 
         return {"language": language_string,
                 "mode": mode_string,
@@ -304,9 +310,9 @@ class Settings:
     @classmethod
     def reset(cls):
         cls.GAME_SETTINGS = deepcopy(cls.INITIAL_SETTINGS)
-        print("*" * 80)
-        print("RESET".center(80, " "))
-        print("*" * 80)
+        verbose_print("*" * 80)
+        verbose_print("RESET".center(80, " "))
+        verbose_print("*" * 80)
 
     @classmethod
     def get_turn(cls):
@@ -319,19 +325,19 @@ class Settings:
 
     @staticmethod
     def create_bag(letter_distribution: dict) -> list:
-        # print("creating bag...")
+        verbose_print("creating bag...")
 
         keys = letter_distribution.keys()
-        # print("all keys:", keys)
+        verbose_print("all keys:", keys)
         result_list = []
         for letter in keys:
-            # print("filling with letter:", letter)
+            # verbose_print("filling with letter:", letter)
             amount = letter_distribution[letter]
-            # print("# in distribution:", amount)
+            # verbose_print("# in distribution:", amount)
             result_list.extend([letter] * amount)
-        #     print("added into the bag:", [letter]*amount)
-        # print("Bag done.")
-        # print(result_list)
+        #     verbose_print("added into the bag:", [letter]*amount)
+        verbose_print("Bag done.")
+        # verbose_print(result_list)
         shuffle(result_list)
         return result_list
 
@@ -339,36 +345,36 @@ class Settings:
     def fill_rack(cls):
         current_rack = cls.get_rack()
         length_on_rack = len(current_rack)
-        # print("length of rack on initiation:", length_on_rack)
+        # verbose_print("length of rack on initiation:", length_on_rack)
         max_length = cls.GAME_SETTINGS['max_rack_letters']
         bag = cls.GAME_SETTINGS['bag']
         shuffle_bag = cls.GAME_SETTINGS['shuffle_after_drawing']
-        # print("maximum no. of letters:", max)
+        # verbose_print("maximum no. of letters:", max)
 
         if length_on_rack == max_length:
             return
 
-        # print("letters in bag:", bag)
-        # print("amount:", len(bag))
+        # verbose_print("letters in bag:", bag)
+        # verbose_print("amount:", len(bag))
 
         while length_on_rack < max_length and len(bag) > 0:
-            # print("while loop reset")
+            # verbose_print("while loop reset")
             letter_to_draw = choice(bag)
-            # print("letter to be drawn:", letter_to_draw)
+            # verbose_print("letter to be drawn:", letter_to_draw)
 
             amount_of_letter_in_bag = bag.count(letter_to_draw)
-            # print(f"amount of letter <{letter_to_draw}> in bag: {amount_of_letter_in_bag}")
+            # verbose_print(f"amount of letter <{letter_to_draw}> in bag: {amount_of_letter_in_bag}")
             if amount_of_letter_in_bag >= 1:
                 current_rack.append(letter_to_draw)
                 bag.pop(bag.index(letter_to_draw))
-                # print("appended to the rack.")
-                # print("rack now:", current_rack)
+                # verbose_print("appended to the rack.")
+                # verbose_print("rack now:", current_rack)
                 # amount_of_letter_in_bag -= 1
             else:
-                # print("no letters in the bag.")
+                # verbose_print("no letters in the bag.")
                 # bag.pop(bag.index(letter_to_draw))
                 continue
-            # print("length of rack in loop:", length_on_rack)
+            # verbose_print("length of rack in loop:", length_on_rack)
             length_on_rack = len(current_rack)
 
             if shuffle_bag is True:
@@ -398,6 +404,8 @@ class Settings:
 class Datatypes:
     class GameSettings(object):
         # TODO: make GameSettings an Object and rewrite all the calls to it.
+        # line by line, remove the refernce to the Setting-class.
+
         def __init__(self,
                      game_mode: str = "normal",
                      game_language: str = "german",
@@ -414,16 +422,10 @@ class Datatypes:
                 raise ValueError(f"""{language_string} is not a language.
                 Valid languages: {list(Settings.languages.keys())}""")
 
-            size_x = len(Settings.boards[mode_string])
-            size_y = len(Settings.boards[mode_string][0])
-
-            center_x = floor(size_x / 2)
-            center_y = floor(size_y / 2)
-
             bag = Settings.create_bag(Settings.AMOUNT[mode_string][language_string])
             shuffle(bag)
-            # print("DEBUG: Bag is now...")
-            # print(bag)
+            # verbose_print("DEBUG: Bag is now...")
+            # verbose_print(bag)
 
             # return {"language": anguage_string,
             #         "mode": mode_string,
@@ -443,9 +445,199 @@ class Datatypes:
             #         "center": (center_x, center_y),
             #         "turn": 1
             #         }
+
             pass
 
         pass
+
+    class Board(object):
+        def __init__(self,
+                     game_mode: str):
+            selected_mode = game_mode.casefold()
+            if selected_mode == "super":
+                self.modifiers = [
+                    ['QW', '', '', 'DL', '', '', '', 'TW', '', '', 'DL', '', '', 'TW', '', '', '', 'DL', '', '', 'QW'],
+                    ['', 'DW', '', '', 'TL', '', '', '', 'DW', '', '', '', 'DW', '', '', '', 'TL', '', '', 'DW', ''],
+                    ['', '', 'DW', '', '', 'QL', '', '', '', 'DW', '', 'DW', '', '', '', 'QL', '', '', 'DW', '', ''],
+                    ['DL', '', '', 'TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW', '', '', 'DL'],
+                    ['', 'TL', '', '', 'DL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DL', '', '', 'TL', ''],
+                    ['', '', 'QL', '', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', '', 'QL', '', ''],
+                    ['', '', '', 'DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL', '', '', ''],
+                    ['TW', '', '', '', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', '', '', '', 'TW'],
+                    ['', 'DW', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', 'DW', ''],
+                    ['', '', 'DW', '', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', '', 'DW', '', ''],
+                    ['DL', '', '', 'TW', '', '', 'DL', '', '', '', 'c', '', '', '', 'DL', '', '', 'TW', '', '', 'DL'],
+                    ['', '', 'DW', '', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', '', 'DW', '', ''],
+                    ['', 'DW', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', 'DW', ''],
+                    ['TW', '', '', '', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', '', '', '', 'TW'],
+                    ['', '', '', 'DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL', '', '', ''],
+                    ['', '', 'QL', '', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', '', 'QL', '', ''],
+                    ['', 'TL', '', '', 'DL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DL', '', '', 'TL', ''],
+                    ['DL', '', '', 'TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW', '', '', 'DL'],
+                    ['', '', 'DW', '', '', 'QL', '', '', '', 'DW', '', 'DW', '', '', '', 'QL', '', '', 'DW', '', ''],
+                    ['', 'DW', '', '', 'TL', '', '', '', 'DW', '', '', '', 'DW', '', '', '', 'TL', '', '', 'DW', ''],
+                    ['QW', '', '', 'DL', '', '', '', 'TW', '', '', 'DL', '', '', 'TW', '', '', '', 'DL', '', '', 'QW']
+                ]
+                self.field = [
+                    # A  B   C   D   E   F   G   H   I   J   K   L   M   N   O   P   Q   R   S   T   U
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 1
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 2
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 3
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 4
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 5
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 6
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 7
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 8
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 9
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 10
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 11
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 12
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 13
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 14
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 15
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 16
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 17
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 18
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 19
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 20
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']  # 21
+                ]
+            else:  # NORMAL BOARD
+                self.modifiers = [
+                    ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW'],  # 1
+                    ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],  # 2
+                    ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],  # 3
+                    ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],  # 4
+                    ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],  # 5
+                    ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],  # 6
+                    ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],  # 7
+                    ['TW', '', '', 'DL', '', '', '', 'c', '', '', '', 'DL', '', '', 'TW'],  # 8
+                    ['', '', 'DL', '', '', '', 'DL', '', 'DL', '', '', '', 'DL', '', ''],  # 9
+                    ['', 'TL', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'TL', ''],  # 10
+                    ['', '', '', '', 'DW', '', '', '', '', '', 'DW', '', '', '', ''],  # 11
+                    ['DL', '', '', 'DW', '', '', '', 'DL', '', '', '', 'DW', '', '', 'DL'],  # 12
+                    ['', '', 'DW', '', '', '', 'DL', '', 'DL', '', '', '', 'DW', '', ''],  # 13
+                    ['', 'DW', '', '', '', 'TL', '', '', '', 'TL', '', '', '', 'DW', ''],  # 14
+                    ['TW', '', '', 'DL', '', '', '', 'TW', '', '', '', 'DL', '', '', 'TW']  # 15
+                ]
+                self.field = [
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 1
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 2
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 3
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 4
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 5
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 6
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 7
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 8
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 9
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 10
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 11
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 12
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 13
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],  # 14
+                    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '']  # 15
+                ]
+            self.size_x = len(self.field)
+            self.size_y = len(self.field[0])
+            self.center_x = floor(self.size_x / 2)
+            self.center_y = floor(self.size_y / 2)
+            self.center = (self.center_x, self.center_y)
+
+        def get_center(self):
+            return self.center
+
+
+    class Position(object):
+        # TOOD: implement.
+        # make the board from squares that can be asked about their status
+        def __init__(self):
+            self.x = None
+            self.y = None
+            self.coordinate = (self.x, self.y)
+            self.position_string = None
+
+            # status:
+            # full,
+            # empty,
+            # contested (one or more neighbors are full)
+            # > contested by position...
+            # and the other way around: > contesting positions:
+            # blocked (all available neighbors are full)
+            self.status = None
+
+            # modifier
+            # none, triple_word, triple_letter etc...
+
+        pass
+
+
+    class Selection(object):
+        # TODO: implement
+        # TODO: write Tests
+        def __init__(self,
+                     position: str,
+                     axis: str,
+                     is_temporary: bool = False):
+            self.origin = position
+            self.axis = axis
+            self.is_temporary = is_temporary
+            # TODO
+            self.position_list = None
+            self.coordinate_list = None
+            # list of positions with their respective coordinates and values combined
+            self.position_tuples = None
+            # allow it to give back letters/words/plays too?
+
+            # allow Selection to Cut/Merge other selection
+            # allow to cut by letters in the word (if a word is in the Selection)
+            # allow specific selection of only filled or empty positions
+
+
+
+        def expand(self,
+                   position_list: Union[str, list],
+                   axis: str,
+                   limit_per_direction: int,
+                   boundary_positions: Union[str, list]) -> list:
+            # TODO: implement this, can be used by WordSearch.find_starting_position
+            # TODO: combine the functionalities of the different position-list-things
+            # in a Class "Selection", which takes care of that.
+
+            # KISS Principle: just expand until the limit is reached.
+            # stop expansion at either the limit of a direction,
+            # a boundary position or the border of the board is reached.
+
+            result_list = []
+            outer_positions = []
+            offset = -1
+            current_position = None
+
+            # in the given position_list, find the topmost and bottom-most position
+            # define the current position
+            while offset <= 1:
+                pass
+
+            return result_list
+            pass
+
+        # functions:
+        # expand - see above
+        # __max__ - position with the highest coordinates (closest to O15)
+        # __min__ - position with the lowest coordinates (closest to A1)
+        # min and max require builing the __iter__ function.
+        # __len__
+        # __cmp__
+        # __repr__
+        # __in__
+        # convert to area
+        # convert to suggestion
+        # cut (remove single or multiple posiitons from list)
+        # merge
+        # position_list
+        # for debugging:
+        #  mark and unmark, which places dots into the selected
+        # positions on the board.
+
 
     class Suggestion(object):
         def __init__(self,
@@ -456,6 +648,8 @@ class Datatypes:
             self.position = position
             self.axis = axis
             self.end = Logic.get_end_position(word, position, axis)
+            self.length = len(word)
+
             if self.end is None:
                 self.used_positions = []
                 self.execution = []
@@ -466,6 +660,8 @@ class Datatypes:
                                   for letter, ex_position
                                   in zip(self.used_positions, self.word)]
 
+            self.position_list = self.used_positions
+
         def __repr__(self):
             return f"<{self.word}, {self.position}, {self.axis}>"
 
@@ -475,34 +671,53 @@ class Datatypes:
     class Play(object):
 
         def __init__(self,
-                     word: str,
-                     position: str,
-                     axis: str,
+                     word: Optional[str] = None,
+                     position: Optional[str] = None,
+                     axis: Optional[str] = None,
+                     suggestion: Optional[Type[Sug]] = None,
                      rack_for_play: Union[str, list, None] = None,
                      play_type: str = "default",
                      is_temporary: bool = False):
-            self.word = word
-            self.position = position
-            self.start = position
+            if suggestion is None:
+                self.word = word
+                self.position = position
+                # alias for starting-position
+                self.axis = axis
+            else:
+                self.word = suggestion.word
+                self.position = suggestion.position
+                self.axis = suggestion.axis
+
             self.is_temporary = is_temporary
-            self.end = Logic.get_end_position(word, position, axis)
-            self.axis = axis
+            self.start = self.position
+            self.end = Logic.get_end_position(self.word,
+                                              self.position,
+                                              self.axis)
+
             self.type = play_type
             self.used_rack = rack_for_play
-            self.used_positions = Logic.convert_positions_to_list(self.start, self.end)
-            # TODO: dirty alias.
+            self.used_positions = Logic.convert_positions_to_list(self.start,
+                                                                  self.end)
+            # alias
             self.position_list = self.used_positions
             self.length = len(self.used_positions)
-            self.extendable_at = Logic.get_axial_neighbors_of_list(self.used_positions, self.axis)
+            self.extendable_at = Logic.get_axial_neighbors_of_list(
+                self.used_positions,
+                self.axis)
             self.extended_plays = []
-            # self.play_previous = []
             self.execution, \
             self.joker_letters, \
             self.joker_positions = self.find_execution()
             self.bonus_plays = []
             self.score_bonus = 0
-            self.score_basic = Logic.score_play(self, is_temporary)
             self.score_total = 0
+            self.score_scrabble = 0
+            # BUG: this just means that every 8-letter word is automatically a scrabble.
+            # determine the number of rack letters used.
+            # rack-letters would be the difference between what's on the board
+            # and the rack.
+            self.score_basic = Logic.score_play(self, is_temporary)
+
             self.turn = Settings.get_turn()
             self.active = True
 
@@ -521,6 +736,9 @@ class Datatypes:
                     return True
                 else:
                     return False
+
+        def __len__(self) -> int:
+            return len(self.word)
 
         def set_inactive(self):
             self.active = False
@@ -542,7 +760,9 @@ class Datatypes:
             if self.type == "extension":
                 self.score_total = self.score_basic
             else:
-                self.score_total = self.score_basic + self.score_bonus
+                self.score_total = (self.score_basic
+                                    + self.score_bonus
+                                    + self.score_scrabble)
 
         def find_execution(self) -> tuple:
             # combine find_jokers and find_used_rack_letters
@@ -560,8 +780,8 @@ class Datatypes:
             else:
                 temp_rack = self.used_rack
 
-            # print("calling find_execution with self:", self)
-            # print("rack:", temp_rack)
+            # verbose_print("calling find_execution with self:", self)
+            # verbose_print("rack:", temp_rack)
 
             non_empty_positions, \
             non_empty_letters = Logic.get_non_empty_tuple(self.position,
@@ -585,19 +805,24 @@ class Datatypes:
                         continue
                     else:
                         result.append((result_letter, play_position))
-                        # print("appending:", (letter, play_position))
+                        # verbose_print("appending:", (letter, play_position))
             return result, jokers, joker_positions
 
         def __repr__(self):
             left = f"{self.word}".ljust(28)
             center = f"{self.start}-{self.end}:{self.axis}".ljust(16)
-            right = f"score:{self.score_total}({self.score_basic}+{self.score_bonus})".ljust(20)
+            right = f"score:{self.score_total}({self.score_basic}+{self.score_bonus}+{self.score_scrabble})".ljust(20)
             bonus = ""
             if len(self.bonus_plays) > 0:
                 for bonus_play in self.bonus_plays:
                     bonus += f"\n>> +{bonus_play.word}".ljust(28)
                     bonus += f"{bonus_play.start}-{bonus_play.end}:{bonus_play.axis}".ljust(16)
                     bonus += f"score:{bonus_play.score_basic}".ljust(20)
+
+            if self.score_scrabble != 0:
+                bonus += f"\n>> +SCRABBLE-Bonus".ljust(28)
+                bonus += "".ljust(16)
+                bonus += f"score:{self.score_scrabble}".ljust(20)
             rep_string = "".join([left, center, right, bonus])
             return rep_string
 
@@ -627,7 +852,7 @@ class Datatypes:
             both_axes = {"x", "y"}
             self.opposite_axis = both_axes.difference(set(self.axis)).pop()
 
-            # print(f"Area from {self.start} to {self.end}:")
+            # verbose_print(f"Area from {self.start} to {self.end}:")
             self.non_empty_positions, \
             self.non_empty_letters = Logic.get_non_empty_tuple(self.start,
                                                                self.end)
@@ -648,16 +873,16 @@ class Datatypes:
             occupied_neighbors = self.get_occupied_neighbors(neighbors)
             self.neighbors = neighbors
             self.occupied_neighbors = occupied_neighbors
-            # print("neighbors:", self.neighbors)
-            # print("contested at these positions:", self.occupied_neighbors)
+            # verbose_print("neighbors:", self.neighbors)
+            # verbose_print("contested at these positions:", self.occupied_neighbors)
             # self.contested_plays = [WordLog.find_active_play_by_position(contested_pos)
             #                         for contested_pos
             #                         in self.contested_at]
             self.contested_plays = WordLog.find_active_play_by_position(self.occupied_neighbors)
             # convert contested_at to position-lists
-            self.contested_areas = self.get_contested_position_lists()
+            self.contested_positions = self.get_contested_position_lists()
 
-            # print("contested plays:")
+            # verbose_print("contested plays:")
             # pprint.pprint(self.contested_plays)
             # the name is confusing.
             self.extension_crossover_positions = self.get_extension_crossovers()
@@ -684,27 +909,27 @@ class Datatypes:
             # if len(self.occupied_neighbors) != len(self.contested_plays):
             #     # TODO: convert contested_at to position_lists:
             #     # Move this to __init__
-            #     contested_areas = []
+            #     contested_positions = []
             #     for c_play in self.contested_plays:
             #         combined_positions = []
             #         for c_position in self.occupied_neighbors:
             #             if c_position in c_play.used_positions:
             #                 combined_positions.append(c_position)
-            #         sorted_areas = Logic.sort_position_list(contested_areas,
+            #         sorted_areas = Logic.sort_position_list(contested_positions,
             #                                                 self.axis)
-            #         contested_areas.append(sorted_areas)
-            #     return contested_areas
+            #         contested_positions.append(sorted_areas)
+            #     return contested_positions
             # else:
             #     return self.occupied_neighbors
             pass
 
         def get_extension_crossovers(self) -> list:
             # compares the given position_list with any contested plays
-            if len(self.contested_areas) == 0:
+            if len(self.contested_positions) == 0:
                 return []
             else:
                 result_list = []
-                for contest_pos_list, contest_play in zip(self.contested_areas,
+                for contest_pos_list, contest_play in zip(self.contested_positions,
                                                           self.contested_plays):
                     extension_set = set(contest_play.extendable_at)
                     area_position_set = set(self.position_list)
@@ -757,7 +982,6 @@ class Datatypes:
             return repr_str
 
 
-
 class Game:
     # TODO: Move this to DataTypes
     class SubTurn(Datatypes.Area):
@@ -771,17 +995,18 @@ class Game:
                      sub_turn_area: Datatypes.Area):
             super().__init__(position_list=sub_turn_area.position_list)
 
-            print(f"initiating SubTurn, area from {sub_turn_area.start} to {sub_turn_area.end}")
-            self.possible_plays = WordSearch.find_plays_for_area(self)
+            verbose_print(f"initiating SubTurn, area from {sub_turn_area.start} to {sub_turn_area.end}")
+            # self.possible_plays = WordSearch.find_plays_for_area(self)
+            self.possible_plays = Scratch.find_plays_for_area(self)
 
             if len(self.possible_plays) > 0:
                 self.highest_scoring_play = sorted(self.possible_plays,
                                                    key=attrgetter('score_total'),
                                                    reverse=True)[0]
-                print(f"Highest Scoring Play in SubTurn for Area {self.start} to {self.end}:")
-                print(self.highest_scoring_play)
+                verbose_print(f"Highest Scoring Play in SubTurn for Area {self.start} to {self.end}:")
+                verbose_print(self.highest_scoring_play)
             else:
-                print("The area has no available Plays.")
+                verbose_print("The area has no available Plays.")
                 self.highest_scoring_play = None
 
     class Turn(object):
@@ -804,7 +1029,7 @@ class Game:
             self.placed_words = WordLog.get_active_plays()
 
             self.busy_positions = []
-            # TODO: where do extension-positions  of words go?
+            # TODO: where do extension-positions of words go?
             self.extension_positions = []
 
             if Checks.is_first_turn() is True:
@@ -815,15 +1040,20 @@ class Game:
                     # self.extension_positions.extend(active_play.extendable_at)
                 self.busy_positions = list(set(self.busy_positions))
 
+            # TODO: make ignored_positions used in find_position_range
             self.ignored_positions = []
             self.usable_positions = []
             self.axes = ["x", "y"]
             self.usable_areas = []
             for filled_position in self.busy_positions:
                 for axis in self.axes:
-                    # print("current axis:", axis)
-                    usable_position_list = WordSearch.find_usable_positions(filled_position, axis)
-                    # print("usable_position_list:", usable_position_list)
+                    verbose_print(f"Position/Axis: {filled_position},{axis}")
+                    # usable_position_list = WordSearch.find_usable_positions(filled_position, axis)
+                    # TODO: TESTING.
+                    usable_position_list = WordSearch.find_position_range_for_position(filled_position, axis)
+                    verbose_print("usable_position_list:", usable_position_list)
+                    # DEBUG
+                    # input()
                     if len(usable_position_list) > 0:
                         self.usable_positions.append(usable_position_list)
                     else:
@@ -832,7 +1062,7 @@ class Game:
                 new_area = Datatypes.Area(position_list=position_list, rack=self.turn_rack)
                 self.usable_areas.append(new_area)
 
-            # print("Number of usable_areas:", len(self.usable_areas))
+            # verbose_print("Number of usable_areas:", len(self.usable_areas))
 
             self.subturns = []
             self.possible_plays = []
@@ -840,32 +1070,33 @@ class Game:
             self.highest_score = 0
             for usable_area in self.usable_areas:
                 # TODO: Threading goes here.
-                # print("subturn for area:")
-                # print(usable_area)
+                # verbose_print("subturn for area:")
+                # verbose_print(usable_area)
                 subturn = Game.SubTurn(usable_area)
                 self.subturns.append(subturn)
 
             for current_subturn in self.subturns:
-                print(f"Subturn from {current_subturn.start} to {current_subturn.end} along {current_subturn.axis}:")
+                verbose_print(
+                    f"Subturn from {current_subturn.start} to {current_subturn.end} along {current_subturn.axis}:")
                 if len(current_subturn.possible_plays) == 0:
-                    print("Subturn has no possible plays.")
+                    verbose_print("Subturn has no possible plays.")
                     continue
                 else:
-                    # print("Available Plays in this Subturn:")
+                    # verbose_print("Available Plays in this Subturn:")
                     # pprint.pprint(current_subturn.possible_plays)
                     self.possible_plays.extend(current_subturn.possible_plays)
 
-                print("highest score so far:")
-                print(self.highest_score)
+                verbose_print("highest score so far:")
+                verbose_print(self.highest_score)
                 current_score = current_subturn.highest_scoring_play.score_total
-                print("current score:", current_score)
+                verbose_print("current score:", current_score)
                 if self.highest_score < current_subturn.highest_scoring_play.score_total:
-                    print("New highest scoring play found:")
-                    print(current_subturn.highest_scoring_play)
+                    verbose_print("New highest scoring play found:")
+                    verbose_print(current_subturn.highest_scoring_play)
                     self.highest_scoring_play = deepcopy(current_subturn.highest_scoring_play)
                     self.highest_score = self.highest_scoring_play.score_total
-            print("Highest-Scoring Play in this Turn:")
-            print(self.highest_scoring_play)
+            verbose_print("Highest-Scoring Play in this Turn:")
+            verbose_print(self.highest_scoring_play)
 
             # execute highest scoring play.
             # Logic.execute_play(self.highest_scoring_play)
@@ -932,25 +1163,42 @@ class Checks:
             return False
 
     @staticmethod
-    def is_position_empty(position: str,
+    def is_position_empty(position_or_list: Union[str, list],
                           is_temporary: bool = False) -> bool:
         """
-        Take a position (optionally on the temporary board),
-        return True if the Square is empty.
+        Take one position a list of positions (optionally on the temporary board),
+        return True if the Square(s) or all Squares are empty.
         """
-        x, y = Logic.convert_position_to_coordinate(position)
-
-        # positions outside of the board can't have letters on them,
-        # but still count as empty.
-        if Checks.is_coordinate_valid(x, y) is False:
-            return True
+        # guard clause: if None is given (a position outside the board), it's
+        # considered empty.
 
         function_board = Logic.get_board(is_temporary)
 
-        if len(function_board[y][x]) == 0:
+        if position_or_list is None or len(position_or_list) == 0:
             return True
+        elif isinstance(position_or_list, str):
+            position_list = [position_or_list]
         else:
-            return False
+            position_list = position_or_list
+
+        for position_string in position_list:
+            x, y = Logic.convert_position_to_coordinate(position_string)
+
+            coordinate_valid = Checks.is_coordinate_valid(x, y)
+            position_empty = len(function_board[y][x]) == 0
+
+            # positions outside of the board can't have letters on them,
+            # but still count as empty.
+            if coordinate_valid is False:  # position outside the board
+                # is_empty = True
+                pass
+            elif position_empty is True:
+                # is_empty = True
+                pass
+            else:  # position inside the board and not empty
+                return False
+        # only returns true if all positions in the list are empty (or outside the board)
+        return True
 
     @staticmethod
     def is_position_open(position_to_check: str,
@@ -972,7 +1220,7 @@ class Checks:
             neighbors = Logic.get_all_neighbors(position_to_check)
 
         neighbor_positions = list(neighbors.values())
-        # print(f"neighborPositions for {position_to_check}: \t {neighborPositions}")
+        # verbose_print(f"neighborPositions for {position_to_check}: \t {neighborPositions}")
         for position in neighbor_positions:
             # TODO: Squash Bug that considers the original position closed....
             if position == original_position:
@@ -1021,9 +1269,9 @@ class Checks:
     @staticmethod
     def is_position_neighbor(position_to_check: str,
                              positions_to_check_against: Union[str, list]) -> bool:
-        print("is_position_neighbor")
-        print("to check:", position_to_check)
-        print("check against:", positions_to_check_against)
+        verbose_print("is_position_neighbor")
+        verbose_print("to check:", position_to_check)
+        verbose_print("check against:", positions_to_check_against)
 
         if isinstance(positions_to_check_against, str):
             position_list = [positions_to_check_against]
@@ -1031,9 +1279,9 @@ class Checks:
             position_list = positions_to_check_against
 
         for position in position_list:
-            print("position to get a neighbor for:", position)
+            verbose_print("position to get a neighbor for:", position)
             neighbors = list(Logic.get_all_neighbors(position).values())
-            print("neighbors:", neighbors)
+            verbose_print("neighbors:", neighbors)
             if position_to_check in neighbors:
                 return True
             else:
@@ -1067,8 +1315,8 @@ class Checks:
 
     @staticmethod
     def is_position_list_continuous(position_list: list) -> bool:
-        # print("position_list:", position_list)
-        # print(type(position_list))
+        # verbose_print("position_list:", position_list)
+        # verbose_print(type(position_list))
         # guard clause: more than one position is required.
         if len(position_list) <= 1:
             return False
@@ -1104,7 +1352,7 @@ class Checks:
         temporary_word = Logic.get_word_from_position(word.position,
                                                       end_position,
                                                       is_temporary=True)
-        # print("temporary word reads:", temporary_word)
+        # verbose_print("temporary word reads:", temporary_word)
         is_placeable = (temporary_word == word.word)
         # else:
         #     raise ValueError("Unsupported type given to parameter 'word':", type(word))
@@ -1136,6 +1384,19 @@ class Checks:
             return False
         return True
 
+    @staticmethod
+    def is_suggestion_valid(suggestion: Datatypes.Suggestion,
+                            is_temporary: bool = False) -> bool:
+
+        word_in_dictionary = Checks.is_word_in_dictionary(suggestion.word)
+        axial_neighbors = Logic.get_axial_neighbors_of_list(suggestion.position_list,
+                                                            suggestion.axis)
+        axial_neighbors_empty = Checks.is_position_empty(axial_neighbors, is_temporary)
+
+        if word_in_dictionary is False or axial_neighbors_empty is False:
+            return False
+
+        return True
 
     @staticmethod
     def is_number_of_sub_plays_valid(list_sub_plays: list,
@@ -1175,12 +1436,13 @@ class Checks:
 
     @staticmethod
     def is_word_buildable(word_to_check: str,
-                          letters_given: str,
+                          letters_given: Union[str, list],
                           max_length: int = 0):
-        # print("is_word_buildable for...")
-        # print("word:", word_to_check)
-        # print("letters:", letters_given)
-        # print("max_length:", max_length)
+        verbose_print("is_word_buildable for...")
+        verbose_print("word:", word_to_check)
+        verbose_print("letters:", letters_given)
+        verbose_print("max_length:", max_length)
+
         num_jokers = letters_given.count("?")
         if max_length > 0:
             if len(word_to_check) > max_length:
@@ -1199,7 +1461,7 @@ class Checks:
                 return False
             else:
                 continue
-        # print("IS BUILDABLE.")
+        verbose_print(word_to_check, "IS BUILDABLE.")
         return True
 
     @staticmethod
@@ -1242,17 +1504,15 @@ class Logic:
 
     @staticmethod
     def get_center_of_board() -> str:
-        # x = floor(Settings.GAME_SETTINGS["size_x"] / 2)
-        # y = floor(Settings.GAME_SETTINGS["size_y"] / 2)
-        # return Logic.convert_coordinate_to_position(x, y)
         x, y = Settings.GAME_SETTINGS['center']
         return Logic.convert_coordinate_to_position(x, y)
 
     @staticmethod
     def find_substring(string_to_find: str,
                        word_to_search: str) -> list:
-        # # search_substring_indices from StackExchange
-        # # https://codereview.stackexchange.com/questions/146834/function-to-find-all-occurrences-of-substring
+        # search_substring_indices from StackExchange
+        # https://codereview.stackexchange.com/questions/146834/function-to-find-all-occurrences-of-substring
+
         # """
         # Generate indices of where substring begins in string
         # >>> find_substring('me', "The cat says meow, meow"))
@@ -1408,7 +1668,7 @@ class Logic:
         elif start_position[1:] == end_position[1:]:  # Horizontal axis
             return "x"
         else:
-            # print(f"""
+            # verbose_print(f"""
             # Warning: get_axis({start_position}, {end_position}):
             # \t {start_position} and {end_position} are not on the same X or Y-Axis.
             # """)
@@ -1483,7 +1743,7 @@ class Logic:
         axis = Logic.get_axis(start_position, end_position)
 
         if axis is None:
-            # print(f"""
+            # verbose_print(f"""
             # Warning: convert_positions_to_list({start_position}, {end_position}):
             # \t {start_position} and {end_position} are not on the same X or Y-Axis.
             # """)
@@ -1529,7 +1789,9 @@ class Logic:
         return sorted_positions
 
     @staticmethod
-    def get_axial_neighbors_of_list(position_list: list, axis: str) -> list:
+    def get_axial_neighbors_of_list(position_list: list,
+                                    axis: str,
+                                    is_temporary: bool = False) -> list:
         """
         Find 2 direct neighbors of the start and end of position_list along axis.
         Returns only valid, unoccupied positions or an empty list if no valid
@@ -1539,8 +1801,11 @@ class Logic:
         :param axis: "X"
         :return: ["A1", "E1"]
         """
+        # print("get_axial_neighbors_of_list")
         result_list = []
         offset = -1
+        # print("position_list")
+        # print(position_list)
         end_positions = (position_list[0], position_list[-1])
         for position in end_positions:
             if offset > 1:
@@ -1550,7 +1815,8 @@ class Logic:
                 offset,
                 axis)
 
-            if extension is not None and Checks.is_position_empty(extension):
+            if extension is not None and Checks.is_position_empty(extension,
+                                                                  is_temporary):
                 result_list.append(extension)
             offset += 2
 
@@ -1619,7 +1885,7 @@ class Logic:
                 Logic.add_temporary_position(position)
         else:
             pass
-            # print(f"set_letter_to_position: position {position} is not empty, taken up by {function_board[y][x]}")
+            # verbose_print(f"set_letter_to_position: position {position} is not empty, taken up by {function_board[y][x]}")
 
     @staticmethod
     # TODO: simplify this (extract functions)
@@ -1782,7 +2048,7 @@ class Logic:
     @staticmethod
     def suggestion_from_position(position: str,
                                  axis: str,
-                                 is_temporary: bool = False) -> Datatypes.Suggestion:
+                                 is_temporary: bool = False) -> Optional[Datatypes.Suggestion]:
 
         # Guard Clause: position must be filled
         if Checks.is_position_empty(position, is_temporary=is_temporary) is True:
@@ -1810,7 +2076,8 @@ class Logic:
         word_string = Logic.get_word_from_position(bottom, ceiling, is_temporary)
         if len(word_string) == 0:
             # TODO: DIRTY
-            return Datatypes.Suggestion()
+            # return Datatypes.Suggestion()
+            return None
         result_suggestion = Datatypes.Suggestion(word_string, bottom, axis)
 
         return result_suggestion
@@ -1864,10 +2131,13 @@ class Logic:
 
     @staticmethod
     def score_play(play: Datatypes.Play,
-                   is_temporary: bool):
+                   is_temporary: bool) -> int:
         """
         Return the total score of a word placed on a board (temporary or actual).
         """
+        # guard clause: a scrabble-bonus is always worth 50 points.
+        if play.type == "scrabble":
+            return 50
         score = 0
         word_multiplier = Logic.get_word_multiplier(play.position,
                                                     play.used_positions[-1],
@@ -1939,7 +2209,7 @@ class Logic:
         # if len(play.execution) == 2:
         #     # play.execution, play.joker_letters = WordSearch.find_execution(play)
         #     raise ValueError("Execution not found")
-        #     # print("execution in execute_play:", play.execution)
+        #     # verbose_print("execution in execute_play:", play.execution)
 
         # Figure out if the execution differs from the
         # if it does, replace play.word with the changed word
@@ -1947,7 +2217,7 @@ class Logic:
             if letter == "?":
                 replaced_letter = play.joker_letters[joker_index]
                 both_letters = ''.join([letter, replaced_letter])
-                # print(both_letters)
+                # verbose_print(both_letters)
                 # set both letters to the boeard
                 Logic.set_letter_to_position(both_letters,
                                              position,
@@ -1958,6 +2228,8 @@ class Logic:
             temporary_rack.remove(letter)
 
         if is_temporary is False:
+            verbose_print("execute_play: setting rack to:", temporary_rack)
+            verbose_print("execution of the play:", play.execution)
             Settings.set_rack(temporary_rack)
 
         if log_play is True:
@@ -1971,17 +2243,17 @@ class Logic:
         current_rack = deepcopy(Settings.get_rack())
         for current_letter in letters:
             current_rack.remove(current_letter)
-        print("remove_from_rack, current rack (before setting the new one):", current_rack)
+        verbose_print("remove_from_rack, current rack (before setting the new one):", current_rack)
         Settings.set_rack(current_rack)
 
     @staticmethod
     def get_one_neighbor(position: str,
                          cardinal_direction: str,
                          show_letters: bool = False) -> str:
-        # print("get_one_neighbor")
-        # print("position:", position)
-        # print("cardinal direction:", cardinal_direction)
-        # print("show_letters:", show_letters)
+        # verbose_print("get_one_neighbor")
+        # verbose_print("position:", position)
+        # verbose_print("cardinal direction:", cardinal_direction)
+        # verbose_print("show_letters:", show_letters)
 
         cardinals = ["north", "east", "south", "west"]
         if cardinal_direction not in cardinals:
@@ -1992,7 +2264,7 @@ class Logic:
                       "south": (0, +1),
                       "west": (-1, 0)}
         mod_x, mod_y = directions[cardinal_direction]
-        # print("position-modifiers:", mod_x, mod_y)
+        # verbose_print("position-modifiers:", mod_x, mod_y)
         neighbor_position = Logic.modify_position_numeric(position,
                                                           mod_x,
                                                           mod_y)
@@ -2006,9 +2278,9 @@ class Logic:
     def get_all_neighbors(position: str,
                           show_letters: bool = False,
                           return_as_list: bool = False) -> Union[dict, list]:
-        # print("get_all_neighbors")
-        # print("for position:", position)
-        # print("show_letters:", show_letters)
+        # verbose_print("get_all_neighbors")
+        # verbose_print("for position:", position)
+        # verbose_print("show_letters:", show_letters)
         north = Logic.get_one_neighbor(position, "north", show_letters)
         east = Logic.get_one_neighbor(position, "east", show_letters)
         south = Logic.get_one_neighbor(position, "south", show_letters)
@@ -2082,7 +2354,7 @@ class WordLog:
         all_play_tuples = [(logged_play.start, logged_play.axis)
                            for logged_play
                            in cls.read_log()]
-        # print("all_starting_positions:", all_play_tuples)
+        # verbose_print("all_starting_positions:", all_play_tuples)
 
         for current_play_tuple in all_play_tuples:
             # find all plays that one starting position uses along an axis
@@ -2121,7 +2393,7 @@ class WordLog:
     def find_active_play_by_position(cls,
                                      position: Union[str, list]) -> list:
         result_list = []
-        # print("calling find_active_play_by_position...")
+        # verbose_print("calling find_active_play_by_position...")
         called_active_plays = cls.get_active_plays()
 
         if isinstance(position, str):
@@ -2129,7 +2401,6 @@ class WordLog:
         else:
             position_list = position
         # TODO: line 625
-        # See line 625 - find ALL active plays by position
         for current_position in position_list:
             for logged_play in called_active_plays:
                 position_in_used = current_position in logged_play.used_positions
@@ -2151,6 +2422,277 @@ class WordLog:
 
 
 class Scratch:
+
+    @staticmethod
+    def replay_turn(play: Datatypes.Play):
+        # take the board-state and a play,
+        # verify the play
+        # execute that play, if correct.
+        pass
+
+    @staticmethod
+    def replay_all_turns(list_of_plays: list):
+        # iterate over all plays,
+        # call replay_turn, change the board-state accordingly.
+        pass
+
+    @staticmethod
+    def verify_play(play: Datatypes.Play, board_state: list):
+        # play is verified if:
+        # the planned word is in the dictionary
+        # the word can be placed from start to end of the play (on the board)
+        # the word touches at least one occupied neighbor
+        # if it touches a word, that word can be extended, which makes it a bonus-play
+        # that bonus play must of course also be a word in the dictionary
+        # all bonus plays must be valid
+        pass
+
+    @staticmethod
+    def find_plays_for_area(area: Datatypes.Area) -> list:
+        # print("calling Scratch.find_plays_for_area")
+
+        # following infos are relevant:
+        # the position list of the area
+        # what letters are available in the area
+        # the occcupied neighbors
+        # if there's any crossover-positions in use (which extend an existing word)
+
+        # simplest idea:
+        # every occupied neighbor in the used-positions of a play must have a bonus-play
+        # on the opposite axis. work with suggestion_from_position.
+        # for every occupied position, decide what kind of play it needs to be
+        # if its an extension-position, TRY suggestion_from_position first,
+        # (if that doesn't work, use find_extension_plays)
+
+        # maybe go by position?
+        # word-extenison only applies if the used-positions of a Suggestion and
+        # the extension-position of a given word overlap - then the entire word must exist!
+        # checking if an extended word exists:
+        # take the number of letters that were added as extension
+        # add to the length of the existing word
+        # ask WordSearch.word_list_by_word after the original word with the total length
+
+        # TODO: cleanup
+        # TODO: Extract function for parallel plays in non-extending situations
+
+        # Bugs:
+        # Bonus plays don't consider letters on parallel words.
+        # sometimes, the execution of a play is not possible yet the play is still valid
+        # "ASSEL" can't be built with "ERNSTLUA"
+
+        # Remember: when only extending a word, the original word and its extension
+        # combine to become the play
+        # maybe only checking the bonus positions alone is enough?
+
+        verbose_print("find_plays_for_area")
+        result_list = []
+        words = WordSearch.create_words(area)
+
+        verbose_print("all words:")
+        verbose_prettyprint(words)
+        verbose_print("Axis of area:", area.axis)
+        verbose_print("Opposite axis:", area.opposite_axis)
+        # TODO: find_placeable_words sometimes bugs out and yields words that
+        # miss a letter - "RASSELN" can't be built with "ERNSTLUA"
+
+        all_placeable_words = WordSearch.find_placeable_words(area, words)
+        verbose_print(f"placeable words ({len(all_placeable_words)} total):")
+        verbose_prettyprint(all_placeable_words)
+
+        # bonus positions and extension positions need to be separate and
+        # exclusive to each other.
+        set_all_contested_positions = set(area.contested_positions)
+        set_area_extensions = set(area.extension_crossover_positions)
+        set_exclusive_contested_pos = (set_all_contested_positions
+                                       .difference(set_area_extensions))
+        # decide what needs to be checked
+        # a word is extended along its own axis - check the entire extended word
+        # a position is contested - needs to be a valid bonus play
+
+        for current_suggestion in all_placeable_words:
+            verbose_print("current suggestion:", current_suggestion)
+            Logic.remove_temporary_positions()
+            list_bonus_plays = []
+
+            # TODO: remove this ugly hack at the source.
+            if current_suggestion.end is None:
+                continue
+            set_suggestion_positions = set(current_suggestion.position_list)
+
+            # create temporary play and execute it.
+            temporary_play = Datatypes.Play(suggestion=current_suggestion,
+                                            play_type="temporary")
+
+            Logic.execute_play(temporary_play,
+                               is_temporary=True,
+                               add_to_log=False)
+
+            # find eventual bonus play, otherwise we only need to check if the word is okay.
+            # reduce to only the used positions of the suggestion
+            bonus_positions = (set_suggestion_positions
+                               .intersection(set_exclusive_contested_pos))
+            extension_positions = (set_suggestion_positions
+                                   .intersection(set_area_extensions))
+            required_bonus_plays = (len(bonus_positions)
+                                    + len(extension_positions))
+            verbose_print("bonus plays required:", required_bonus_plays)
+
+            # we also need to figure out on which axis the position is contested
+            if len(bonus_positions) > 0:
+                verbose_print("Bonus positions:", bonus_positions)
+                for b_position in bonus_positions:
+                    # read on the opposite axis.
+                    bonus_suggestion = (Logic.suggestion_from_position(
+                        b_position,
+                        area.opposite_axis,
+                        is_temporary=True))
+                    if len(bonus_suggestion.position_list) == 0:
+                        break
+                    # validate the suggestion
+                    bonus_is_valid = Checks.is_suggestion_valid(bonus_suggestion)
+                    if bonus_is_valid:
+                        bonus_play = Datatypes.Play(suggestion=bonus_suggestion)
+                        list_bonus_plays.append(bonus_play)
+                    else:
+                        break
+
+            elif len(extension_positions) > 0:
+                # find the play the position touches.
+                for e_pos in extension_positions:
+                    # todo: also needs an axis as an argument in case 2 words can be
+                    # extended on the same position
+                    list_extension_plays = WordLog.find_active_play_by_extension_position(e_pos)
+                    # if the temporary play is along the same axis as the extended play,
+                    # the entire new word needs to be valid
+                    for play_to_extend in list_extension_plays:
+                        if play_to_extend.axis == area.axis:
+                            suggestion_axis = area.axis
+                        else:
+                            suggestion_axis = area.opposite_axis
+
+                        extension_suggestion = Logic.suggestion_from_position(
+                            e_pos,
+                            suggestion_axis,
+                            is_temporary=True)
+                        extension_is_valid = Checks.is_suggestion_valid(
+                            extension_suggestion,
+                            is_temporary=True)
+                        if extension_is_valid:
+                            extending_play = Datatypes.Play(
+                                suggestion=extension_suggestion)
+                            list_bonus_plays.append(extending_play)
+                        else:
+                            break
+            else:  # neither extension nor bonus position is required, build word as normal.
+                # if the extension is the only bonus-position required,
+                # that play does't have a bonus play.
+                # instead, the play becomes the entire word (base-word and extension)
+                # TODO: validate play?
+                # result_list.append(temporary_play)
+                if required_bonus_plays == 0:
+                    result_list.append(temporary_play)
+                elif len(list_bonus_plays) != required_bonus_plays:
+                    verbose_print("Number of bonus plays doesn't match, continue to next Suggestion.")
+                    verbose_print("Number of Bonus plays required:", required_bonus_plays)
+                    verbose_print("Number of Bonus plays provided:", len(list_bonus_plays))
+                    continue
+                else:
+                    verbose_print(f"Bonus plays appended: {len(list_bonus_plays)}")
+                    temporary_play.extend_play(list_bonus_plays)
+                    result_list.append(temporary_play)
+
+        return result_list
+
+        # @staticmethod
+        # def find_plays_for_area(area: Datatypes.Area) -> list:
+        # TODO: clean this up.
+        # for current_suggestion in all_placeable_words:
+        #     Logic.remove_temporary_positions()
+        #     temporary_play = Datatypes.Play(current_suggestion.word,
+        #                                     current_suggestion.position,
+        #                                     current_suggestion.axis)
+        #     Logic.execute_play(temporary_play,
+        #                        is_temporary=True,
+        #                        add_to_log=False)
+        #     verbose_print("placed on the temporary board:", temporary_play)
+        #     # Display.print_board(True)
+        #     # find the neighbors of the contested areas,
+        #     # those should have overlap with the used positions of the play.
+        #     # TODO: extract function to find_bonus_positions
+        #     set_used_pos_in_play = set(temporary_play.used_positions)
+        #     set_bonus_positions = set_contested_areas.intersection(set_used_pos_in_play)
+        #     bonus_positions = list(set_bonus_positions)
+        #     verbose_print("Necessary Bonus positions:", bonus_positions)
+        #     # For every contested position in used_positions
+        #     list_bonus_plays = []
+        #     for b_pos in bonus_positions:
+        #         # read_on_position for the contested position
+        #         temporary_suggestion = Logic.suggestion_from_position(b_pos,
+        #                                                               area.opposite_axis,
+        #                                                               is_temporary=True)
+        #         # verbose_print("temporary suggestion:", temporary_suggestion)
+        #         # check if that word is in the dictionary
+        #         # if yes, add to bonus plays
+        #         if Checks.is_word_in_dictionary(temporary_suggestion.word):
+        #             verbose_print(f"{temporary_suggestion.word} is a valid word.")
+        #             bonus_play = Datatypes.Play(temporary_suggestion.word,
+        #                                         temporary_suggestion.position,
+        #                                         temporary_suggestion.axis,
+        #                                         play_type="bonus")
+        #             list_bonus_plays.append(bonus_play)
+        #         else:
+        #             verbose_print(f"{temporary_suggestion.word} is not in the dictionary.")
+        #             verbose_print("Breaking.")
+        #             break
+        #     # verbose_print("# of Bonus-Plays needed:", len(bonus_positions))
+        #     # verbose_print("# of Bonus Plays:", len(list_bonus_plays))
+        #     if len(list_bonus_plays) < len(bonus_positions):
+        #         verbose_print("not enough valid bonus plays.")
+        #         verbose_print("Continuing to next placeable word.")
+        #         continue
+        #     else:
+        #         temporary_play.extend_play(list_bonus_plays)
+        #         result_list.append(temporary_play)
+        #
+        #     # complex, but more accurate:
+        #     # iterate over the contested positions
+        #     # figure out how what letters can extend the existing play
+        #     # (make it like the execution on the actual play), place letters on the temporary board
+        #     # take the area via regex and reduce all_placeable_words to only its matches.
+        #     # also consider the changed rack for the temporary-placed words.
+        #
+        #     # simpler:
+        #     # verbose_print("all all_placeable_words:")
+        #     # pprint.pprint(all_placeable_words)
+        # for current_suggestion in all_placeable_words:
+        #     # verbose_print("current_suggestion:", current_suggestion)
+        #     extension_plays = WordSearch.find_extension_plays(area, current_suggestion)
+        #     # TODO: debug the parallel plays.
+        #     parallel_plays = WordSearch.find_parallel_plays(area,
+        #                                                     current_suggestion,
+        #                                                     area.extension_crossover_positions)
+        #     # is this actually necessary?
+        #     crossover_positions = WordSearch.find_affected_crossovers(area, current_suggestion)
+        #
+        #     # TODO: number_of_sub_plays is no longer a representative name.
+        #     # since it doesn't look at the parallel plays as well.
+        #
+        #     # is this necessary?
+        #     if Checks.is_number_of_sub_plays_valid(extension_plays,
+        #                                            crossover_positions):
+        #         verbose_print("Number of sub_plays is valid.")
+        #         play = Datatypes.Play(current_suggestion.word,
+        #                               current_suggestion.position,
+        #                               current_suggestion.axis)
+        #         play.extend_play(extension_plays)
+        #         play.extend_play(parallel_plays)
+        #         result_list.append(play)
+        #
+        #     # TODO: check validity of the play.
+        #     # in the execution, every occupied neighbor must be part of a valid word.
+        #     # there must be as many bonus-plays as there are affected occupied neighbors.
+        #
+
     # @staticmethod
     # dirty backup of the old find_starting_position
     # def find_starting_position(word: str,
@@ -2177,7 +2719,7 @@ class Scratch:
     #     # center of the board must be touched, but offset is
     #     # at least 1 off the center (words cant start on center)
     #     # should return ["ERNST", "G8", "x"]
-    #     # print(f"find_starting_position for <{word}>")
+    #     # verbose_print(f"find_starting_position for <{word}>")
     #     # find fixed positions and figure out if those are continuous
     #     if Checks.is_first_turn() is True:
     #         pass
@@ -2187,7 +2729,7 @@ class Scratch:
     #         # TODO: Debug - this runs more often than necessary
     #         # the word can basically be placed anywhere within the area
     #         # TODO: Extract function:
-    #         print("position_list:", area.position_list)
+    #         verbose_print("position_list:", area.position_list)
     #         for current_area_position in area.position_list:
     #             end_position = Logic.modify_position_by_axis(current_area_position,
     #                                                          length - 1,
@@ -2200,27 +2742,27 @@ class Scratch:
     #
     #             if Checks.is_first_turn() is True:
     #                 if length < 3:
-    #                     # print("Length lower than 3")
+    #                     # verbose_print("Length lower than 3")
     #                     return []
     #                 else:
     #                     # define the starting positions to be tried
     #                     raw_starting_positions = area.position_list[0:-length]
-    #                     print("raw starting positions:", raw_starting_positions)
+    #                     verbose_print("raw starting positions:", raw_starting_positions)
     #
     #                 # TODO: extract function: Positions for Turn 1
     #                 # center position must be used
     #                 # center position must be surrounded by at least 1 letter on each side
     #                 center_positions = Logic.get_axial_neighbors_of_list([center], area.axis)
     #                 center_positions.insert(1, center)
-    #                 print("center positions:", center_positions)
+    #                 verbose_print("center positions:", center_positions)
     #                 set_center = set(center_positions)
     #                 for start_position in raw_starting_positions:
     #                     if start_position in checked_starting_positions:
     #                         continue
-    #                     print("current start:", start_position)
+    #                     verbose_print("current start:", start_position)
     #                     end_index = area.position_list.index(start_position) + length - 1
     #                     in_loop_end_position = area.position_list[end_index]
-    #                     print("current end:", in_loop_end_position)
+    #                     verbose_print("current end:", in_loop_end_position)
     #                     # TODO: Debug, "A8" shouldn't be a valid start for a 8-letter word.
     #                     # check against modify_position from start to end to see if
     #                     # this logic checks out
@@ -2228,11 +2770,11 @@ class Scratch:
     #                                                                     in_loop_end_position)
     #                     # cut off the outermost used positions
     #                     center_section = set(position_list).intersection(set_center)
-    #                     print("intersection of the center positions:", center_section)
+    #                     verbose_print("intersection of the center positions:", center_section)
     #                     if len(center_section) == 3:
     #                         checked_starting_positions.append(start_position)
     #                     else:
-    #                         print("not all center positions are used. Continue.")
+    #                         verbose_print("not all center positions are used. Continue.")
     #                         continue
     #
     #             else:
@@ -2251,7 +2793,7 @@ class Scratch:
     #             # the only letter that's in fixed and the word
     #             # search_string = set(area.fixed_letters).intersection(set(word))
     #             search_string = area.non_empty_letters[0]
-    #         # print("search_string:", search_string)
+    #         # verbose_print("search_string:", search_string)
     #
     #         first_fixed_position = area.non_empty_positions[0]
     #         offsets = list(Logic.find_substring(search_string, word))
@@ -2381,8 +2923,67 @@ class WordSearch:
     # first is "open" positions -> find_usable_positions
     # second is "busy" positions ->
     # busy positions could try to connect 2 letters in an area instead of avoiding then
-    @staticmethod
 
+    @staticmethod
+    def find_position_range_for_position(position: str,
+                                         axis: str,
+                                         rack: Optional[list] = None) -> list:
+        verbose_print("Function: find_position_range_for_position")
+        # take a given position, find lower and upper limit
+        # limit is the number of letters on the rack
+        # counter increases by 1 for every empty square
+        # counter decreases by 1 for every busy square
+        # break when either the counter is 0 or the limit of the board is reached.
+
+        # guard clause: the given position should have at least one
+        # empty square around it.
+        if Checks.is_position_valid(position) is False:
+            return []
+
+        if Checks.is_position_closed(position) is True:
+            return []
+
+        if rack is None:
+            given_rack = Settings.get_rack()
+        else:
+            given_rack = rack
+
+        length = len(given_rack)
+        original_position = position
+        offset = -1  # start finding the lower positions first.
+        limit_positions = []
+
+        current_position = original_position
+        counter = length
+
+        while offset <= 1:
+            next_position = Logic.modify_position_by_axis(current_position,
+                                                          offset,
+                                                          axis,
+                                                          use_nearest_valid=True)
+            if Checks.is_position_empty(current_position) is True:
+                counter -= 1
+                # TODO OPTIONAL: find out if the position is blocked
+                # (i.e. surrounded by busy squares)
+
+            if next_position == current_position or counter <= 0:
+                # board-limit is found
+                limit_positions.append(current_position)
+                current_position = original_position
+                counter = length
+                offset += 2
+                continue
+
+            current_position = next_position
+        # end of while loop
+
+        verbose_print("limit positions:", limit_positions)
+        position_range = Logic.convert_positions_to_list(limit_positions[0],
+                                                         limit_positions[-1])
+
+        return position_range
+
+    @staticmethod
     # TODO: "merge" areas by going over extension-positions along their axis.
     def find_usable_positions(position: str, axis: str) -> list:
         # return list of squares with empty neighbors,
@@ -2428,13 +3029,16 @@ class WordSearch:
             return []
         else:
             sorted_usable_positions = Logic.sort_position_list(usable_positions, axis)
-            # print("Usable Positions:", sorted_usable_positions)
-            # print(sorted_usable_positions)
+            # verbose_print("Usable Positions:", sorted_usable_positions)
+            # verbose_print(sorted_usable_positions)
             return sorted_usable_positions
 
     @staticmethod
     def find_placeable_words(area: Datatypes.Area,
                              word_list: list) -> list:
+        # TODO: if there's contested positions along the way, the filled position
+        # is not necessarily used.
+
         # TODO: requires cleanup (extract functions), this is heavily nested.
         # idea: this function needs to cover all scenarios:
         # first turn,
@@ -2446,17 +3050,21 @@ class WordSearch:
         for current_word in word_list:
             all_starting_positions = WordSearch.find_starting_position(current_word,
                                                                        area)
-            # print(f"starting positions for {current_word}", all_starting_positions)
+            # verbose_print(f"starting positions for {current_word}", all_starting_positions)
             if len(all_starting_positions) > 0:
                 for starting_position in all_starting_positions:
                     suggestion = Datatypes.Suggestion(current_word,
                                                       starting_position,
                                                       area.axis)
+                    if Checks.is_word_buildable(current_word,
+                                                area.available_letters) is False:
+                        continue
+
                     if Checks.is_suggestion_in_area(suggestion, area) is False:
                         continue
 
                     if Checks.is_word_placeable(suggestion):
-                        # print(f"{current_word} on {starting_position} along {area.axis} is placeable.")
+                        # verbose_print(f"{current_word} on {starting_position} along {area.axis} is placeable.")
                         result_list.append(suggestion)
         return result_list
 
@@ -2474,14 +3082,14 @@ class WordSearch:
                                      crossover_play: Datatypes.Play) -> tuple:
         start = crossover_play.start
         end = crossover_play.end
-        # print("find_endpoints_of_crossovers")
-        # print(f"start: {start}, end: {end}")
+        # verbose_print("find_endpoints_of_crossovers")
+        # verbose_print(f"start: {start}, end: {end}")
         if Checks.is_position_neighbor(position, start):
-            # print(f"affected_position {position} is a next to the START of the affected play. ({start})")
+            # verbose_print(f"affected_position {position} is a next to the START of the affected play. ({start})")
             result_start = position
             result_end = end
         elif Checks.is_position_neighbor(position, end):
-            # print(f"affected_position {position} is a next to the END of the affected play. ({end})")
+            # verbose_print(f"affected_position {position} is a next to the END of the affected play. ({end})")
             result_start = start
             result_end = position
         else:
@@ -2495,18 +3103,18 @@ class WordSearch:
         result_list = []
         non_existing_words = []
         correct_words = []
-        # print("current placeable_word:", placeable_word)
+        # verbose_print("current placeable_word:", placeable_word)
         # place the word, and any filled extension crossovers will check
         raw_play = Datatypes.Play(placeable_word.word,
                                   placeable_word.position,
                                   placeable_word.axis,
                                   play_type="temporary",
                                   is_temporary=True)
-        # print("unchecked_play:")
-        # print(raw_play)
+        # verbose_print("unchecked_play:")
+        # verbose_print(raw_play)
         affected_cross_positions = WordSearch.find_affected_crossovers(area,
                                                                        placeable_word)
-        # print("affected_cross_positions", affected_cross_positions)
+        # verbose_print("affected_cross_positions", affected_cross_positions)
         Logic.execute_play(raw_play,
                            is_temporary=True,
                            add_to_log=False)
@@ -2521,8 +3129,8 @@ class WordSearch:
                  extension_end) = WordSearch.find_endpoints_of_crossovers(affected_position,
                                                                           play_to_extend)
                 #
-                # print("temporary_start:", extension_start)
-                # print("temporary_end:", extension_end)
+                # verbose_print("temporary_start:", extension_start)
+                # verbose_print("temporary_end:", extension_end)
 
                 new_temporary_word = Logic.get_word_from_position(extension_start,
                                                                   extension_end,
@@ -2553,8 +3161,8 @@ class WordSearch:
         # checked_play = Datatypes.Play(placeable_word.word,
         #                               placeable_word.position,
         #                               placeable_word.axis)
-        # # print("checked play is now:")
-        # # print(checked_play)
+        # # verbose_print("checked play is now:")
+        # # verbose_print(checked_play)
         # result_list.append(checked_play)
         return result_list
 
@@ -2563,22 +3171,19 @@ class WordSearch:
                             placeable_word: Datatypes.Suggestion,
                             ignored_positions: list) -> list:
 
-        # print("find_parallel_plays")
+        verbose_print("find_parallel_plays")
         # goal of this function:
         # and WordSearch.find_plays_for_area should access this
         # in both cases, this returns the Result from placing a word in an Area.
         # ERDE on G8, URNE on rack:
         # <URNE, I9, X + Bonus from DU and UR>
 
-        # guard clause: not first turn,
-        # given area must have no letters on it. --> NO
-        # ...why? Parallel Plays might still happen even if the area is not empty.
         is_first_turn = Checks.is_first_turn()
         area_not_empty = len(area.non_empty_positions) > 0
         if is_first_turn or area_not_empty:
             return []
 
-        print("it's not the first turn and the area is empty.")
+        verbose_print("it's not the first turn and the area is empty.")
         result_list = []
         temp_play = Datatypes.Play(placeable_word.word,
                                    placeable_word.position,
@@ -2588,12 +3193,12 @@ class WordSearch:
         # extends_along_axis = (Checks.is_any_element_in_list(
         #     area.extension_crossover_positions,
         #     placeable_word.used_positions) is False)
-        # print("extends_along_axis:", extends_along_axis)
+        # verbose_print("extends_along_axis:", extends_along_axis)
         # the line below would belong in an else-block of this.
         # extends_words_on_opposite_axis = False
 
         # if extends_along_axis is False:
-        # print("Suggestion does not extend along its own axis.")
+        # verbose_print("Suggestion does not extend along its own axis.")
         for execution_position, execution_letter in placeable_word.execution:
 
             if execution_position in ignored_positions:
@@ -2603,17 +3208,17 @@ class WordSearch:
                                                             area.opposite_axis,
                                                             is_temporary=True)
 
-            print(f"reading on opposite axis {area.opposite_axis}, position {execution_position}:")
-            print(raw_suggestion)
+            verbose_print(f"reading on opposite axis {area.opposite_axis}, position {execution_position}:")
+            verbose_print(raw_suggestion)
             # TODO: this is a dirty workaround. Cleaner solution will be in
             #  Logic.suggestion_from_position
             if len(raw_suggestion) <= 1:
                 continue
             if Checks.is_word_in_dictionary(raw_suggestion.word) is False:
-                print("that word does NOT exist, breaking...")
+                verbose_print("that word does NOT exist, breaking...")
                 break
             else:
-                print("that word exists.")
+                verbose_print("that word exists.")
                 # grab the neighbors for each position, see if the word
                 # along the opposite axis exists.
                 result_play = Datatypes.Play(raw_suggestion.word,
@@ -2629,43 +3234,50 @@ class WordSearch:
         # TODO: try a solution without extension_crossover_positions
         # TODO: Extract function for parallel plays in non-extending situations
         # DEBUG:
-        # print("find_plays_for_area")
+
+        # Bugs:
+        # Bonus plays don't consider letters on parallel words.
+        # sometimes, the execution of a play is not possible yet the play is still valid
+        # "ASSEL" can't be built wirh "ERNSTLUA"
+        verbose_print("find_plays_for_area")
         result_list = []
         words = WordSearch.create_words(area)
-        # print("all words:")
+        verbose_print("all words:")
         # pprint.pprint(words)
-        # print("Axis of area:", area.axis)
-        # print("Opposite axis:", area.opposite_axis)
+        verbose_print("Axis of area:", area.axis)
+        verbose_print("Opposite axis:", area.opposite_axis)
         all_placeable_words = WordSearch.find_placeable_words(area, words)
-        # print(f"placeable words ({len(all_placeable_words)} total):")
+        verbose_print(f"placeable words ({len(all_placeable_words)} total):")
         # pprint.pprint(all_placeable_words)
 
         # TODO: Maybe wrap this in the area itself with a boolean
         # the only time extension crossovers are relevant are during
         # find_extension_plays, otherwise not.
         # remove the if-branch, only call find_extension plays
+
+        set_contested_areas = set(area.contested_positions)
+
+        # TODO: clean this up.
+
         if len(area.extension_crossover_positions) == 0:
-            print("Area doesn't extend words along their own axis.")
+            verbose_print("Area doesn't extend words along their own axis.")
             for current_suggestion in all_placeable_words:
-                # get rid of the previous temporary suggestion. Done.
                 Logic.remove_temporary_positions()
-                # make
                 temporary_play = Datatypes.Play(current_suggestion.word,
                                                 current_suggestion.position,
                                                 current_suggestion.axis)
                 Logic.execute_play(temporary_play,
                                    is_temporary=True,
                                    add_to_log=False)
-                # print("placed on the temporary board:", temporary_play)
+                # verbose_print("placed on the temporary board:", temporary_play)
                 # Display.print_board(True)
                 # find the neighbors of the contested areas,
                 # those should have overlap with the used positions of the play.
-                #TODO: Move these outside of the loop - the area doesn't change inside the loop.
-                set_contested_areas = set(area.contested_areas)
+                # TODO: extract function to find_bonus_positions
                 set_used_pos_in_play = set(temporary_play.used_positions)
                 set_bonus_positions = set_contested_areas.intersection(set_used_pos_in_play)
                 bonus_positions = list(set_bonus_positions)
-                # print("Necessary Bonus positions:", bonus_positions)
+                verbose_print("Necessary Bonus positions:", bonus_positions)
                 # For every contested position in used_positions
                 list_bonus_plays = []
                 for b_pos in bonus_positions:
@@ -2673,32 +3285,32 @@ class WordSearch:
                     temporary_suggestion = Logic.suggestion_from_position(b_pos,
                                                                           area.opposite_axis,
                                                                           is_temporary=True)
-                    # print("temporary suggestion:", temporary_suggestion)
+                    # verbose_print("temporary suggestion:", temporary_suggestion)
                     # check if that word is in the dictionary
                     # if yes, add to bonus plays
                     if Checks.is_word_in_dictionary(temporary_suggestion.word):
-                        # print(f"{temporary_suggestion.word} is a valid word.")
+                        # verbose_print(f"{temporary_suggestion.word} is a valid word.")
                         bonus_play = Datatypes.Play(temporary_suggestion.word,
                                                     temporary_suggestion.position,
                                                     temporary_suggestion.axis,
                                                     play_type="bonus")
                         list_bonus_plays.append(bonus_play)
                     else:
-                        # print(f"{temporary_suggestion.word} is not in the dictionary.")
-                        # print("Breaking.")
+                        # verbose_print(f"{temporary_suggestion.word} is not in the dictionary.")
+                        # verbose_print("Breaking.")
                         break
-                # print("# of Bonus-Plays needed:", len(bonus_positions))
-                # print("# of Bonus Plays:", len(list_bonus_plays))
+                # verbose_print("# of Bonus-Plays needed:", len(bonus_positions))
+                # verbose_print("# of Bonus Plays:", len(list_bonus_plays))
                 if len(list_bonus_plays) < len(bonus_positions):
-                    print("not enough valid bonus plays.")
-                    print("Continuing to next placeable word.")
+                    verbose_print("not enough valid bonus plays.")
+                    verbose_print("Continuing to next placeable word.")
                     continue
                 else:
                     temporary_play.extend_play(list_bonus_plays)
                     result_list.append(temporary_play)
 
         else:
-            print("Area extends existing words.")
+            verbose_print("Area extends existing words.")
             # complex, but more accurate:
             # iterate over the contested positions
             # figure out how what letters can extend the existing play
@@ -2707,10 +3319,10 @@ class WordSearch:
             # also consider the changed rack for the temporary-placed words.
 
             # simpler:
-            # print("all all_placeable_words:")
+            # verbose_print("all all_placeable_words:")
             # pprint.pprint(all_placeable_words)
             for current_suggestion in all_placeable_words:
-                # print("current_suggestion:", current_suggestion)
+                # verbose_print("current_suggestion:", current_suggestion)
                 extension_plays = WordSearch.find_extension_plays(area, current_suggestion)
                 # TODO: debug the parallel plays.
                 parallel_plays = WordSearch.find_parallel_plays(area,
@@ -2725,7 +3337,7 @@ class WordSearch:
                 # is this necessary?
                 if Checks.is_number_of_sub_plays_valid(extension_plays,
                                                        crossover_positions):
-                    print("Number of sub_plays is valid.")
+                    verbose_print("Number of sub_plays is valid.")
                     play = Datatypes.Play(current_suggestion.word,
                                           current_suggestion.position,
                                           current_suggestion.axis)
@@ -2742,10 +3354,11 @@ class WordSearch:
     @staticmethod
     def find_starting_position(word: str,
                                area: Datatypes.Area) -> list:
-        # Create separate functions for:
+        # TODO: Create separate functions for:
         # starting_first_turn
         # starting_with_empty_area
         # starting_with_busy_area
+        # starting_buildable_from_rack
         """
         returns a list of available starting Positions
         for a word within the area of the search-parameters
@@ -2762,38 +3375,42 @@ class WordSearch:
         checked_starting_positions = []
         center = Logic.get_center_of_board()
 
+        is_buildable_from_rack = Checks.is_word_buildable(word, area.rack)
+        # don't exclude fixed positions that would allow the word to be placed
+        # buildable_fixed_positions = None
+
         # Testing Situation:
         # "ERNST" on Rack, no letter placed.
         # center of the board must be touched, but offset is
         # at least 1 off the center (words cant start on center)
         # should return ["ERNST", "G8", "x"]
-        # print(f"find_starting_position for <{word}>")
-        # print(f"in area from {area.start} to {area.end}")
+        # verbose_print(f"find_starting_position for <{word}>")
+        # verbose_print(f"in area from {area.start} to {area.end}")
         # find fixed positions and figure out if those are continuous
         if Checks.is_first_turn() is True:
             # objective: shorten raw_starting_positions as much as possible.
             if length < 3:
-                # print("Length lower than 3")
+                # verbose_print("Length lower than 3")
                 return []
             else:
                 # define the starting positions to be tried
                 raw_starting_positions = area.position_list[0:-length]
-                # print("raw starting positions:", raw_starting_positions)
+                # verbose_print("raw starting positions:", raw_starting_positions)
 
             # TODO: extract function: Positions for Turn 1
             # center position must be used
             # center position must be surrounded by at least 1 letter on each side
             center_positions = Logic.get_axial_neighbors_of_list([center], area.axis)
             center_positions.insert(1, center)
-            # print("center positions:", center_positions)
+            # verbose_print("center positions:", center_positions)
             set_center = set(center_positions)
             for start_position in raw_starting_positions:
                 if start_position in checked_starting_positions:
                     continue
-                # print("current start:", start_position)
+                # verbose_print("current start:", start_position)
                 end_index = area.position_list.index(start_position) + length - 1
                 in_loop_end_position = area.position_list[end_index]
-                # print("current end:", in_loop_end_position)
+                # verbose_print("current end:", in_loop_end_position)
                 # TODO: Debug, "A8" shouldn't be a valid start for a 8-letter word.
                 # check against modify_position from start to end to see if
                 # this logic checks out
@@ -2801,35 +3418,58 @@ class WordSearch:
                                                                 in_loop_end_position)
                 # cut off the outermost used positions
                 center_section = set(position_list).intersection(set_center)
-                # print("intersection of the center positions:", center_section)
+                # verbose_print("intersection of the center positions:", center_section)
                 if len(center_section) == 3:
                     checked_starting_positions.append(start_position)
                 else:
-                    # print("not all center positions are used. Continue.")
+                    # verbose_print("not all center positions are used. Continue.")
                     continue
+
+        elif is_buildable_from_rack:
+            # TODO: implement this
+            # TODO: write tests
+            # GOAL: only create position lists of the necessary length to place the word
+            # a position in this list must touch a contested position
+            # include fixed positions that are open and can help in building the word
+
+            # simplest implementation:
+            # convert the positions to a list
+            # blindly allow all starting positions fitting in that space
+
+            # simple-ish:
+            # look for contested positions, expand them outwards by word.length -1
+            # see if any of the fixed positions can be used by the word
+            # remove unneeded fixed positions and their neighboring empty positions
+            # check if the remaining whole position-lists can fit the word
+            #
+            #
+
+            # more complex implementation:
+            # build Class "Selection" and ask that to expand until the limiting positions.
+            pass
+
 
         elif len(area.non_empty_positions) == 0:
             # TODO: Debug - this runs more often than necessary
             # the word can basically be placed anywhere within the area
             # TODO: Extract function:
-            # print("position_list:", area.position_list)
+            # verbose_print("position_list:", area.position_list)
+
             for current_area_position in area.position_list:
                 end_position = Logic.modify_position_by_axis(current_area_position,
                                                              length - 1,
                                                              area.axis)
-
-                intended_position_list = Logic.convert_positions_to_list(current_area_position,
-                                                                         end_position)
                 if end_position is None:
                     continue
 
-                else:
-                    if end_position in area.position_list:
-                        if Checks.is_position_list_touching(intended_position_list,
-                                                            area.occupied_neighbors):
+                intended_position_list = Logic.convert_positions_to_list(current_area_position,
+                                                                         end_position)
 
-                            # advanced: the intended position_list should touch at least one occupied neighbor.
-                            raw_starting_positions.append(current_area_position)
+                if end_position in area.position_list:
+                    if Checks.is_position_list_touching(intended_position_list,
+                                                        area.occupied_neighbors):
+                        # advanced: the intended position_list should touch at least one occupied neighbor.
+                        raw_starting_positions.append(current_area_position)
         else:
             # check if the fixed positions are continuous
             if area.is_continuous is True:
@@ -2839,7 +3479,7 @@ class WordSearch:
                 # the only letter that's in fixed and the word
                 # search_string = set(area.fixed_letters).intersection(set(word))
                 search_string = area.non_empty_letters[0]
-            # print("search_string:", search_string)
+            # verbose_print("search_string:", search_string)
 
             first_fixed_position = area.non_empty_positions[0]
             offsets = list(Logic.find_substring(search_string, word))
@@ -2856,22 +3496,22 @@ class WordSearch:
                         raw_starting_positions.append(modified_position)
 
         if len(checked_starting_positions) == 0:
-            # print("Iterating over raw_starting_positions:")
+            # verbose_print("Iterating over raw_starting_positions:")
             for position in raw_starting_positions:
                 suggest = Datatypes.Suggestion(word, position, area.axis)
-                # print("current suggestion:")
-                # print(suggest)
+                # verbose_print("current suggestion:")
+                # verbose_print(suggest)
                 if Checks.is_word_placeable(suggest) is True:
                     checked_starting_positions.append(position)
-        # print("creating cleansed starting positions")
+        # verbose_print("creating cleansed starting positions")
         cleansed_starting_positions = list(set(checked_starting_positions))
         return cleansed_starting_positions
 
     @staticmethod
     def create_words(area: Datatypes.Area) -> list:
-        # print("create_words:")
-        # print("max:", area.max_length)
-        # print("min:", area.min_length)
+        # verbose_print("create_words:")
+        # verbose_print("max:", area.max_length)
+        # verbose_print("min:", area.min_length)
         # TODO: this currently works "blind", it doesn't care whether
         # there's occupied positions in the area or not.
         # could make it consider already placed letters and use word_list_by_word.
@@ -2923,10 +3563,10 @@ class WordSearch:
     def word_list_by_letters(length: int,
                              first_letter: str,
                              second_letter: str = "") -> list:
-        # print("word_list_by_letters")
-        # print("length:", length)
-        # print("first_letter:", first_letter)
-        # print("second_letter:", second_letter)
+        # verbose_print("word_list_by_letters")
+        # verbose_print("length:", length)
+        # verbose_print("first_letter:", first_letter)
+        # verbose_print("second_letter:", second_letter)
         if "?" in first_letter or "?" in second_letter:
             return []
 
@@ -2956,7 +3596,7 @@ class WordSearch:
             f_max_length = max_length
 
         if f_max_length < len(word):
-            print(f"max_length is {f_max_length}, which is smaller than length of {len(word)}.")
+            verbose_print(f"max_length is {f_max_length}, which is smaller than length of {len(word)}.")
             return []
 
         letter_set = list(set(word))
@@ -2996,10 +3636,10 @@ class Dictionary:
             try:
                 db[language]
             except KeyError:
-                print("creating dictionary-file for language:", language)
+                verbose_print("creating dictionary-file for language:", language)
                 db[language] = Dictionary.create_dictionary(language)
             finally:
-                print("loading dictionary-file for language:", language)
+                verbose_print("loading dictionary-file for language:", language)
                 shelve_content = db[language]
         return shelve_content
 

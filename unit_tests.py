@@ -836,8 +836,7 @@ def play_finding_by_position():
 
 
 def play_finding_parallel():
-    # Passes.
-
+    input("Starting: play_finding_parallel")
     S.reset()
     S.set_rack("ERDE")
     play_erde = D.Play("ERDE", "G8", "X")
@@ -851,7 +850,7 @@ def play_finding_parallel():
     print("affected_parallel plays:")
     pprint.pprint(affected_parallel_plays)
 
-    parallel_subturn = Game.SubTurn(parallel_area.position_list)
+    parallel_subturn = Game.SubTurn(parallel_area)
     print("highest scoring play:")
     pprint.pprint(parallel_subturn.highest_scoring_play)
     print("Plays possible on I9 to L9:")
@@ -860,6 +859,8 @@ def play_finding_parallel():
 
 
 def play_finding_multiple():
+    # TODO: make this pass
+    # input("Starting: play_finding_multiple")
     S.reset()
     S.set_rack("ERDE")
     play_erde = D.Play("ERDE", "G8", "X")
@@ -868,9 +869,13 @@ def play_finding_multiple():
 
     S.set_rack("DEN")
     area_den = D.Area("K6", "K8")
-    subturn_den = Game.SubTurn(area_den.position_list)
+    subturn_den = Game.SubTurn(area_den)
+    # highest scoring play should be DEN, K6, Y with ERDEN as bonus.
+    print("highest scoring play for Area of K6 to K8:")
+    print(subturn_den.highest_scoring_play)
     # play_den = D.Play("DEN", "K6", "Y")
     L.execute_play(subturn_den.highest_scoring_play)
+    # L.execute_play(play_den)
     S.increase_turn()
 
     S.set_rack("URNE")
@@ -880,7 +885,7 @@ def play_finding_multiple():
     print("affected_parallel plays:")
     pprint.pprint(affected_parallel_plays)
 
-    parallel_subturn = Game.SubTurn(parallel_area.position_list)
+    parallel_subturn = Game.SubTurn(parallel_area)
     print("highest scoring play:")
     # expected: Still URNE on I9, X
     # bonus, DU, ER, DENN
@@ -893,8 +898,7 @@ def play_finding_multiple():
     # >> +DENN                   K6-K9:Y         score:4
     # >> +DU                     I7-I8:y         score:3
     # >> +ER                     J7-J8:y         score:2
-    # >> +DENN                   K5-K8:y         score:8
-    print("PASSED.")
+    # print("PASSED.")
 
 
 def read_from_position():
@@ -970,6 +974,7 @@ def entire_game(is_automatic: bool = False,
     # write "incorrect" plays to a list for debugging.
     S.reset()
     remaining_letters_initial = len(S.INITIAL_SETTINGS['bag'])
+    # remaining_letters_initial = len("AAAA")
     remaining_letters = deepcopy(remaining_letters_initial)
     turn_number = S.GAME_SETTINGS['turn']
     all_turns = []
@@ -977,26 +982,34 @@ def entire_game(is_automatic: bool = False,
     game_score = 0
     previous_best_play = None
     current_rack = []
+    running = True
 
     print("Number of Letters:", remaining_letters)
 
-    while remaining_letters > 0:
+    while running:
 
         if always_ERNSTLUA is True:
-            num_letters_replaced = len("ERNSTLUA") - len(current_rack)
+            # 4 letters still in the bag: only "ERNS" should be on the rack.
+            num_letters_replaced = len("ERNSTLUA") - len(S.get_rack())
             print("number of letters replaced:", num_letters_replaced)
-            S.set_rack("ERNSTLUA")
+
+            if remaining_letters == 0:
+                pass
+            elif remaining_letters < num_letters_replaced:
+                offset = len("ERNSTLUA") - remaining_letters
+                ernstlua_letters = "ERNSTLUA"[0:-offset]
+                S.set_rack(ernstlua_letters)
+            else:
+                S.set_rack("ERNSTLUA")
             current_rack = S.get_rack()
-            remaining_letters = remaining_letters - num_letters_replaced
-            input()
+            remaining_letters -= num_letters_replaced
 
         else:
             S.fill_rack()
             current_rack = S.get_rack()
             remaining_letters = len(S.GAME_SETTINGS['bag'])
 
-        highest_scoring_play = None
-        Display.print_board()
+        # highest_scoring_play = None
         print(f"  Turn No.: {turn_number}  ".center(80, "-"))
         Display.print_board()
 
@@ -1004,20 +1017,20 @@ def entire_game(is_automatic: bool = False,
         # see scatch.md
 
         turn = Game.Turn(None, current_rack)
-        highest_scoring_play = turn.highest_scoring_play
+        # highest_scoring_play = turn.highest_scoring_play
 
-        print("Total possible Plays for this turn:")
-        pprint.pprint(turn.possible_plays)
+        # print("Total possible Plays for this turn:")
+        # pprint.pprint(turn.possible_plays)
 
         Display.print_board()
 
         print("The Highest scoring play is:".center(80))
-        pprint.pprint(highest_scoring_play)
+        pprint.pprint(turn.highest_scoring_play)
 
         # TODO: this never fires.
-        if previous_best_play is not None:
-            if highest_scoring_play == previous_best_play:
-                raise NotImplementedError("Previous Best Play is identical to the current best Play.")
+        # if previous_best_play is not None:
+        #     if highest_scoring_play == previous_best_play:
+        #         raise NotImplementedError("Previous Best Play is identical to the current best Play.")
 
         if is_automatic is True:
             answer = "y"
@@ -1030,16 +1043,21 @@ def entire_game(is_automatic: bool = False,
             if len(answer) == 0:
                 continue
             elif answer.casefold() == "n":
-                incorrect_plays.append(highest_scoring_play)
+                incorrect_plays.append(turn.highest_scoring_play)
                 break
             elif answer.casefold() == "y":
                 break
 
         print("  End of turn.  ".center(80, "-"))
         print("Remaining letters:", remaining_letters)
-        L.execute_play(highest_scoring_play)
-        previous_best_play = highest_scoring_play
-        game_score += highest_scoring_play.score_total
+        L.execute_play(turn.highest_scoring_play)
+        # previous_best_play = highest_scoring_play
+        game_score += turn.highest_scoring_play.score_total
+
+        if remaining_letters < 0 and len(S.get_rack()) == 0:
+            running = False
+            break
+
         S.increase_turn()
 
     print("Game has ended.")
@@ -1051,9 +1069,39 @@ def entire_game(is_automatic: bool = False,
     pprint.pprint(WL.get_active_plays())
 
 
+def custom_turn():
+    # Goal: all plays in the Area of L1 to L15 need bonus plays to be valid.
+    # BUG: doesn't consider single letters along the way - investigate!
+    # see also: Line 3378 in logic_new
+    #
+    S.reset()
+    S.set_rack("ERNSTLUA")
+    word_1 = D.Play("NEUTRAL", "F8", "x")
+    L.execute_play(word_1)
+    S.increase_turn()
+
+    S.set_rack("ERNSTLUA")
+    word_2 = D.Play("ANLAUTES", "K5", "y")
+    L.execute_play(word_2)
+    S.increase_turn()
+
+    # S.set_rack("ERNSTLUA")
+    S.set_rack("FASS") # Fass should be valid on L2
+    searching_area = D.Area("L1", "L15")
+    possible_plays = Scratch.find_plays_for_area(searching_area)
+    # pprint.pprint(possible_plays)
+
+    max_length = len(searching_area.non_empty_letters) + len(S.get_rack()) + 1
+    for current_length in range(max_length, 2, -1):
+        highest_length = [item for item in possible_plays if len(item) == current_length]
+        print("Plays with a length of", current_length)
+        pprint.pprint(highest_length)
+    Display.print_board()
+
 def deterministic_outcome():
     # emulate 2 games where the rack always stays the same.
     # remaining log should be identical.
+    # TODO: figure out a way to decide between same-scoring plays
     pass
 
 
@@ -1061,6 +1109,53 @@ def find_empty_area_on_higher_turns():
     # find_usable_areas should still find a area the length
     # of position+(length_of_rack*2) on the given axis
     pass
+
+
+def find_position_ranges():
+    S.reset()
+    S.set_rack("TEST")  # length of 4
+
+    print("Rack:", S.get_rack())
+    # starting at the top-barrier of the board H1
+    # initial field is empty
+    # expected: H4
+    print("H1, y")
+    test = WS.find_position_range_for_position("H1", "y")
+    print(test)
+    assert (test == L.convert_positions_to_list("H1", "H4"))
+
+    # starting at the bottom-barrier of the board H15,
+    # initial field is empty
+    print("H15, y")
+    test = WS.find_position_range_for_position("H15", "y")
+    print(test)
+    assert (test == L.convert_positions_to_list("H12", "H15"))
+    # expected: H12
+
+    # starting at the center of the board H8
+    # initial field is empty
+    # expected: list from H5 to H11 (length of 7, center with 3 to either side)
+    print("H8, y")
+    test = WS.find_position_range_for_position("H8", "y")
+    print(test)
+    assert (test == L.convert_positions_to_list("H5", "H11"))
+
+    # H8 stays free, H7 and H9 have a letter on them.
+    # expected: list from H4 to H12 (+1 to either direction from before)
+    print("letters on H7 and H9, starting on H8, y")
+    L.set_letter_to_position("X", "H7")
+    L.set_letter_to_position("X", "H9")
+    test = WS.find_position_range_for_position("H8", "y")
+    print(test)
+    assert (test == L.convert_positions_to_list("H4", "H12"))
+
+    # H8 stays free, 4 positions are empty: H1, H2, H8, H15
+    # expected: all positions on H, so H1 to H15
+    L.set_word_to_position("XXXX", "H3", axis="y")
+    L.set_word_to_position("XXXXX", "H10", axis="y")
+    test = WS.find_position_range_for_position("H8", "y")
+    print(test)
+    assert (test == L.convert_positions_to_list("H1", "H15"))
 
 
 def test_all():
@@ -1079,6 +1174,7 @@ def test_all():
     play_finding_parallel()
     read_from_position()
     play_finding_multiple()
+    find_position_ranges()
     print("PASSED.")
 
 
@@ -1087,4 +1183,8 @@ def test_all():
 # test_all
 # entire_turn(5)
 # area_find_occupied_neighbors()
-entire_game(always_ERNSTLUA=True, is_automatic=True)
+# entire_game(always_ERNSTLUA=True, is_automatic=True)
+custom_turn()
+# find_position_ranges()
+# play_finding_parallel()
+# play_finding_multiple()
