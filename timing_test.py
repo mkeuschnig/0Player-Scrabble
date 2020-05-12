@@ -1,7 +1,7 @@
 import timeit
 
-from logic_new import Settings
-from logic_new import WordSearch
+from logic import Settings
+from logic import WordSearch
 
 
 def wrapper(func, *args, **kwargs):

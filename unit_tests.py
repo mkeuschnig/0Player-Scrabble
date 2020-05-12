@@ -5,15 +5,15 @@
 import pprint
 from copy import deepcopy
 
-from logic_new import Checks as C
-from logic_new import Datatypes as D
-from logic_new import Display
-from logic_new import Game
-from logic_new import Logic as L
-from logic_new import Scratch
-from logic_new import Settings as S
-from logic_new import WordLog as WL
-from logic_new import WordSearch as WS
+from logic import Checks as C
+from logic import Datatypes as D
+from logic import Display
+from logic import Game
+from logic import Logic as L
+from logic import Scratch
+from logic import Settings as S
+from logic import WordLog as WL
+from logic import WordSearch as WS
 
 gameSettings = S.get_game_settings()
 S.set_game_settings(settings=gameSettings)
@@ -42,7 +42,7 @@ def basics():
     assert C.is_position_list_continuous(whole_range) is True
     assert C.is_position_list_continuous(broken_range) is False
 
-    # logic.py
+    # logic_old.py
     assert list(L.find_substring("A", "ABRACADABRA")) == [0, 3, 5, 7, 10]
     assert list(L.find_substring("Z", "BANANA")) == []
 
@@ -531,82 +531,11 @@ def entire_turn(number_of_turns: int = 5):
             S.set_rack("BEDARF")
         print(f"  Turn No.: {turn_number}  ".center(80, "-"))
         Display.print_board()
-        # input()
 
-        # prepare the result-lists
-        # placeable_suggestions = []
-        # possible_plays = []
-
-        # if C.is_first_turn() is True:
-        #     print("It's the first turn.")
-        #     S.set_rack("ERNSTLU?")
-        #     Display.print_board()
-        #     debug_first_turn = Game.Turn(None, S.get_rack())
-        #     # print("Best turn:")
-        #     # input("Press Enter to execute the highest scoring play from this turn...")
-        #     L.execute_play(debug_first_turn.highest_scoring_play)
-        #     # print(testing_first_turn.highest_scoring_play)
-        #     # center = L.get_center_of_board()
-        #     # the board is symmetrical, might as well start on the x-axis
-        #     # find the usable area (x-axis along the center)
-        #
-        #     # usable_positions = WS.find_usable_positions(center, "x")
-        #     # usable_area = D.Area(position_list=usable_positions)
-        #     # convert to search parameters
-        #     # find words according to those parameters
-        #
-        #     # first_subturn = Game.SubTurn(usable_positions)
-        #     # possible_words = WS.create_words(usable_area)
-        #
-        #     # L.execute_play(first_subturn.highest_scoring_play)
-        # else:
-        #     print("Current turn:", turn_number)
-        #     # possible_plays = []
-        #     turn = Game.Turn(None, S.get_rack())
-        #     all_turns.append(turn)
-        #     # input("Press Enter to execute the highest scoring play from this turn...")
-        #     L.execute_play(turn.highest_scoring_play)
-        #     # TODO: encapsulate creating a Turn.
-        #     # creating a turn requires:
-        #     # the board state (the already placed words), the rack
-        #     # the
-        #
-        #     # possible_plays = WS.find_all_plays()
-        #     # raise NotImplementedError("NYI")
-        #     # pass
-
-        # print("Current turn:", turn_number)
-        # possible_plays = []
         turn = Game.Turn(None, S.get_rack())
         all_turns.append(turn)
         # input("Press Enter to execute the highest scoring play from this turn...")
         L.execute_play(turn.highest_scoring_play)
-
-        # TODO: encapsulate creating a Turn.
-        # creating a turn requires:
-        # the board state (the already placed words), the rack
-        # the
-
-        # possible_plays = WS.find_all_plays()
-        # raise NotImplementedError("NYI")
-        # pass
-
-        # if len(possible_plays) == 0:
-        #     raise NotImplementedError("NYI. There's no available Play. Swap out some letters.")
-
-        # sorted_plays = sorted(possible_plays,
-        #                       key=operator.attrgetter('score'),
-        #                       reverse=True)
-        # highest_scoring_play = sorted_plays[0]
-        # lowest_scoring = sorted_plays[-1]
-        # print("highest scoring play:")
-        # print(highest_scoring_play)
-        #
-        # print("lowest scoring play:")
-        # print(lowest_scoring)
-
-        # Display.print_board()
-
         print("  End of turn.  ".center(80, "-"))
         # S.fill_rack()
         S.increase_turn()
@@ -1086,7 +1015,7 @@ def custom_turn():
     S.increase_turn()
 
     # S.set_rack("ERNSTLUA")
-    S.set_rack("FASS") # Fass should be valid on L2
+    S.set_rack("FASS")  # Fass should be valid on L2
     searching_area = D.Area("L1", "L15")
     possible_plays = Scratch.find_plays_for_area(searching_area)
     # pprint.pprint(possible_plays)
@@ -1097,6 +1026,8 @@ def custom_turn():
         print("Plays with a length of", current_length)
         pprint.pprint(highest_length)
     Display.print_board()
+    #expected: "Plays with a length of 4: FASS,L2,y and FASS,L3,y
+
 
 def deterministic_outcome():
     # emulate 2 games where the rack always stays the same.
@@ -1164,8 +1095,6 @@ def test_all():
     rack_complete()
     play_creating()
     finding_usable_positions()
-    first_turn()
-    entire_turn()
     position_finding()
     word_finding_by_entire_word()
     area_finding()
@@ -1175,16 +1104,18 @@ def test_all():
     read_from_position()
     play_finding_multiple()
     find_position_ranges()
+    first_turn()
+    entire_turn()
     print("PASSED.")
 
 
 # Actual execution:
 # finding_usable_positions()
 # test_all
-# entire_turn(5)
+entire_turn(5)
 # area_find_occupied_neighbors()
 # entire_game(always_ERNSTLUA=True, is_automatic=True)
-custom_turn()
+# custom_turn()
 # find_position_ranges()
 # play_finding_parallel()
 # play_finding_multiple()
