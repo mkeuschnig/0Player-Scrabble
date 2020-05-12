@@ -11,7 +11,7 @@ from copy import deepcopy
 import pprint
 import logic
 
-game_settings = logic.Settings.get_game_settings("german", "normal")
+game_settings = logic.Settings.get_game_settings("normal", "german")
 logic.Settings.set_game_settings(settings=game_settings)
 
 
